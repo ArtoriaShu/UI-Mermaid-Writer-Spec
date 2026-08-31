@@ -1,0 +1,27 @@
+# UI Mermaid Writer Spec
+
+面向 **UI Node Tree & Notes Exporter v10.10+** 交接文本的 Mermaid `sequenceDiagram` 转写规范与 Codex Skill。
+
+## 当前版本
+
+- Skill：[`SKILL_UI_Mermaid_Writer_v1.3.md`](SKILL_UI_Mermaid_Writer_v1.3.md)
+- 完整规范：[`UI控件交互图_Mermaid转写规范_v2.3.md`](UI控件交互图_Mermaid转写规范_v2.3.md)
+- Codex 入口：[`SKILL.md`](SKILL.md)
+
+## v10.10 同步重点
+
+- 全文统一使用“交互说明”。
+- 忽略与恢复均作用于当前节点及其全部后代。
+- `` `真实节点名`（中文作用） `` 中，反引号内名称是权威节点名，括号内容仅作职责解释。
+- Variant 对应节点按相对层级路径、节点类型、同级同名出现序号匹配。
+- Variant 业务差异只认节点新增、节点缺失和 `effectiveVisible` 变化；纯视觉变化不进入业务状态。
+- Variant 根组件自身的 Figma `visible` 不向内部业务节点传播。
+- `matched / recovered / manual / ambiguous / new` 仅为备注迁移诊断，不进入 Mermaid。
+
+## 使用
+
+将本项目目录作为 Codex Skill 使用时，从 `SKILL.md` 进入；直接交给模型时，可同时提供版本化 Skill 与完整规范。
+
+## 来源与署名
+
+Concept & Vibe Coding by Shu.
