@@ -7,6 +7,19 @@
 - Skill：[`SKILL_UI_Mermaid_Writer_v1.3.md`](SKILL_UI_Mermaid_Writer_v1.3.md)
 - 完整规范：[`UI控件交互图_Mermaid转写规范_v2.3.md`](UI控件交互图_Mermaid转写规范_v2.3.md)
 - Codex 入口：[`SKILL.md`](SKILL.md)
+- Figma 插件源码：[`plugin/`](plugin/)
+
+## 插件源码
+
+`plugin/` 内是 **UI Node Tree & Notes Exporter v10.10 Sidepanel Preview** 的完整可加载源码：
+
+- `manifest.json`：Figma 插件清单
+- `code.js`：Figma 主线程逻辑
+- `ui.html`：侧栏界面与交接处理逻辑
+- `README.md`：插件版本说明
+- `tests/variant-semantics.regression.test.js`：Variant 数据语义回归测试
+
+在 Figma Desktop 的开发插件菜单中选择 `plugin/manifest.json` 即可加载。
 
 ## v10.10 同步重点
 

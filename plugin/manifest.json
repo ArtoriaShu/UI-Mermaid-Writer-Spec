@@ -1,0 +1,17 @@
+{
+  "name": "UI Node Tree & Notes Exporter",
+  "id": "1528796410935827401",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": [
+    "figma"
+  ],
+  "documentAccess": "dynamic-page",
+  "enablePrivatePluginApi": true,
+  "networkAccess": {
+    "allowedDomains": [
+      "none"
+    ]
+  }
+}
