@@ -31,8 +31,8 @@
   button:hover { background: var(--surface-hover); }
   button.primary { background: var(--brand); border-color: var(--brand); color: var(--brand-text); }
   button.primary:hover { filter: brightness(.96); }
-  input[type="text"], textarea, select { border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 5px; outline: none; }
-  input[type="text"]:focus, textarea:focus, select:focus { border-color: var(--brand); }
+  input[type="text"], input[type="password"], textarea, select { border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 5px; outline: none; }
+  input[type="text"]:focus, input[type="password"]:focus, textarea:focus, select:focus { border-color: var(--brand); }
   header { padding: 12px 14px 10px; border-bottom: 1px solid var(--border); flex: none; }
   .title-row { display: flex; align-items: center; gap: 8px; }
   h1 { margin: 0; font-size: 15px; font-weight: 700; }
@@ -195,6 +195,31 @@
   .plain-stats { margin-left: auto; color: var(--muted); white-space: nowrap; }
   .handoff-check { margin-bottom: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--muted); white-space: pre-wrap; }
   .handoff-check.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--border)); }
+
+  .mmd-pane { flex-direction: column; min-height: 0; padding: 10px 14px 12px; gap: 8px; }
+  .mmd-config { flex: none; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); padding: 10px; }
+  .mmd-config-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 9px; }
+  .mmd-config-title { font-size: 13px; font-weight: 800; }
+  .mmd-config-subtitle { color: var(--muted); font-size: 10.5px; margin-top: 2px; }
+  .mmd-key-status { margin-left: auto; flex: none; border: 1px solid var(--border); border-radius: 999px; padding: 2px 8px; color: var(--muted); font-size: 10px; }
+  .mmd-key-status.ready { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 55%, var(--border)); }
+  .mmd-config-grid { display: grid; grid-template-columns: minmax(240px,1.5fr) minmax(170px,.8fr) auto auto; gap: 7px; align-items: center; }
+  .mmd-config-grid input[type="password"], .mmd-config-grid select { min-width: 0; width: 100%; padding: 6px 8px; }
+  .mmd-options { grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; color: var(--muted); }
+  .mmd-options label { display: inline-flex; align-items: center; gap: 5px; }
+  .mmd-guardrail { flex: none; padding: 8px 10px; border: 1px solid color-mix(in srgb, var(--brand) 38%, var(--border)); border-radius: 7px; background: color-mix(in srgb, var(--brand) 5%, var(--bg)); color: var(--muted); }
+  .mmd-guardrail b { color: var(--text); }
+  .mmd-request-status { flex: none; min-height: 32px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--muted); white-space: pre-wrap; }
+  .mmd-request-status.busy { color: var(--brand); border-color: color-mix(in srgb, var(--brand) 45%, var(--border)); }
+  .mmd-request-status.error { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+  .mmd-request-status.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+  .mmd-output { flex: 1; min-height: 180px; width: 100%; resize: none; padding: 11px 12px; font: 11px/1.55 Consolas, "SFMono-Regular", Menlo, monospace; white-space: pre; overflow: auto; }
+  .mmd-validation { flex: none; max-height: 130px; overflow: auto; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--muted); white-space: pre-wrap; }
+  .mmd-validation.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--border)); }
+  .mmd-validation.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, var(--border)); }
+  .mmd-actions { flex: none; display: flex; align-items: center; gap: 8px; }
+  .mmd-actions .spacer { flex: 1; }
+  .mmd-usage { color: var(--muted); font-size: 10px; white-space: nowrap; }
 
   .state-pane { flex-direction: column; min-height: 0; }
   .state-top { flex: none; padding: 9px 14px; border-bottom: 1px solid var(--border); background: var(--surface); }
@@ -658,7 +683,7 @@
       <div class="sidebar-mark">UI</div>
       <div class="sidebar-brand-copy">
         <strong>Node Handoff</strong>
-        <span>Figma · v10.10 Preview</span>
+        <span>Figma · v10.11 DeepSeek</span>
       </div>
     </div>
 
@@ -676,14 +701,14 @@
     </div>
 
     <div class="sidebar-spacer"></div>
-    <div class="sidebar-local"><span class="sidebar-local-dot"></span><span>本地 · Figma 只读<br>网络访问关闭</span></div>
+    <div class="sidebar-local"><span class="sidebar-local-dot"></span><span>Figma 只读<br>仅生成 MMD 时联网</span></div>
   </aside>
 
   <div class="app-main">
     <header class="app-header">
       <div class="header-topline">
         <h1>UI Node Tree & Notes Exporter</h1>
-        <span class="offline">本地 · 只读</span>
+        <span class="offline">Figma 只读 · DeepSeek 可选联网</span>
       </div>
       <div class="active-context">
         <span class="active-context-role" id="activeContextRole">当前</span>
@@ -725,6 +750,7 @@
   <button class="tab" data-tab="state">状态 / 变体</button>
   <button class="tab" data-tab="plain">交互说明</button>
   <button class="tab" data-tab="ai">交接文档</button>
+  <button class="tab" data-tab="mmd">生成 MMD</button>
   <button class="tab" data-tab="json">JSON</button>
   <button class="tab hidden-linked-tab" data-tab="linked" aria-hidden="true" tabindex="-1">关联组件</button>
 </div>
@@ -841,6 +867,43 @@
     <div class="actions"><button class="primary copy-output" data-target="aiOutput">复制完整交接文档</button><button class="download-output" data-target="aiOutput" data-suffix="ai-handoff">导出完整 .txt</button><div class="spacer"></div><span class="hint">这一个 TXT 会聚合主组件、关联组件、节点说明、有效的 Figma 变体状态、Figma 状态快照、交互说明与交接检查</span></div>
   </section>
 
+  <section class="pane mmd-pane" id="mmdPane">
+    <div class="mmd-config">
+      <div class="mmd-config-head">
+        <div>
+          <div class="mmd-config-title">DeepSeek 直接生成 Mermaid</div>
+          <div class="mmd-config-subtitle">API Key 只保存在本机 Figma clientStorage，不进入备注、交接文档、JSON 或 MMD。</div>
+        </div>
+        <span class="mmd-key-status" id="deepseekKeyStatus">未读取设置</span>
+      </div>
+      <div class="mmd-config-grid">
+        <input id="deepseekApiKey" type="password" autocomplete="off" placeholder="输入 DeepSeek API Key；已保存时可留空">
+        <select id="deepseekModel" title="Pro 更重视准确性；Flash 更快、更省">
+          <option value="deepseek-v4-pro" selected>DeepSeek V4 Pro</option>
+          <option value="deepseek-v4-flash">DeepSeek V4 Flash</option>
+        </select>
+        <button id="deepseekSave">保存设置</button>
+        <button id="deepseekClear">清除 Key</button>
+        <div class="mmd-options">
+          <label><input id="deepseekRememberKey" type="checkbox" checked>记住 API Key</label>
+          <label><input id="deepseekThinking" type="checkbox">深度思考（更慢、费用可能更高）</label>
+          <label><input id="deepseekAutoRepair" type="checkbox" checked>发现高风险问题时自动修正一次</label>
+        </div>
+      </div>
+    </div>
+    <div class="mmd-guardrail"><b>生成边界：</b>可以理解、整理、归纳，但不能创造。插件会检查真实节点遗漏、代码围栏、初始阶段混入运行时逻辑，以及资料未出现却被新增的创建 / 删除 / 刷新 / 复用等行为。</div>
+    <div class="mmd-request-status" id="deepseekStatus">等待生成。请先完成组件备注、关联组件、状态 / 变体和交互说明。</div>
+    <textarea id="mmdOutput" class="mmd-output" spellcheck="false" placeholder="生成结果会显示在这里；可直接编辑。"></textarea>
+    <div class="mmd-validation" id="mmdValidation">尚未校验。</div>
+    <div class="mmd-actions">
+      <button id="generateMmd" class="primary">使用 DeepSeek 生成 MMD</button>
+      <button id="copyMmd">复制 MMD</button>
+      <button id="downloadMmd">导出 .mmd</button>
+      <div class="spacer"></div>
+      <span class="mmd-usage" id="deepseekUsage"></span>
+    </div>
+  </section>
+
   <section class="pane output-pane" id="jsonPane">
     <textarea id="jsonOutput" readonly spellcheck="false"></textarea>
     <div class="actions"><button class="primary copy-output" data-target="jsonOutput">复制 JSON</button><button class="download-output" data-target="jsonOutput" data-suffix="structure">导出 .json</button></div>
@@ -908,6 +971,15 @@
   var autocompleteActiveIndex = 0;
   var autocompleteComposing = false;
 
+  // v10.11：DeepSeek MMD 生成只使用当前交接快照；API Key 由 code.js 保存在本机 clientStorage。
+  var deepseekHasApiKey = false;
+  var deepseekRequestSeq = 0;
+  var deepseekPendingRequestId = '';
+  var deepseekLastContext = null;
+  var deepseekRepairAttempted = false;
+  var deepseekLastModelWarnings = [];
+  var deepseekLastEvidenceGaps = [];
+
   var includeTypesEl = document.getElementById('includeTypes');
   var includeHiddenEl = document.getElementById('includeHidden');
   var orderEl = document.getElementById('order');
@@ -958,6 +1030,19 @@
   var stateComponentNameEl = document.getElementById('stateComponentName');
   var variantPanelEl = document.getElementById('variantPanel');
   var manualStateTitleEl = document.getElementById('manualStateTitle');
+  var deepseekApiKeyEl = document.getElementById('deepseekApiKey');
+  var deepseekModelEl = document.getElementById('deepseekModel');
+  var deepseekRememberKeyEl = document.getElementById('deepseekRememberKey');
+  var deepseekThinkingEl = document.getElementById('deepseekThinking');
+  var deepseekAutoRepairEl = document.getElementById('deepseekAutoRepair');
+  var deepseekSaveEl = document.getElementById('deepseekSave');
+  var deepseekClearEl = document.getElementById('deepseekClear');
+  var deepseekKeyStatusEl = document.getElementById('deepseekKeyStatus');
+  var deepseekStatusEl = document.getElementById('deepseekStatus');
+  var generateMmdEl = document.getElementById('generateMmd');
+  var mmdOutputEl = document.getElementById('mmdOutput');
+  var mmdValidationEl = document.getElementById('mmdValidation');
+  var deepseekUsageEl = document.getElementById('deepseekUsage');
 
   function escHtml(s) {
     return String(s == null ? '' : s)
@@ -2068,7 +2153,7 @@
   function syncRootSelectionPinned() {
     // 编辑关联组件时，Figma 里的选区变化只用于查看/定位，不应把关联组件误当成新的主工作区。
     // 状态页同样需要固定当前组件，便于在画布中切换子层级显隐。
-    var shouldPin = activeTab === 'state' || !!(activeState && activeState.role === 'linked');
+    var shouldPin = activeTab === 'state' || activeTab === 'mmd' || !!(activeState && activeState.role === 'linked');
     parent.postMessage({ pluginMessage: { type: 'set-root-selection-pinned', enabled: shouldPin } }, '*');
   }
 
@@ -3224,6 +3309,218 @@
     lines.push('9. 当前组件树遇到嵌套子组件 INSTANCE 时只保留子组件根节点；其内部节点必须以对应关联组件章节为准，不得从主组件章节推断或重复展开。');
     lines.push('10. 外部关联组件来自另一个 Figma Design 的本地组件资料 JSON；其业务地位与当前文件关联组件相同，但不能据其 Node ID 在当前 Design 中定位或推断真实父子关系。');
     return lines;
+  }
+
+  function buildMmdGenerationContext() {
+    if (activeState) persistActiveState();
+    var audit = buildReferenceAudit();
+    var nodeFacts = [];
+    var requiredNodeNames = [];
+    var seenNames = Object.create(null);
+    for (var s = 0; s < audit.snapshots.length; s++) {
+      var snap = audit.snapshots[s];
+      for (var i = 0; i < snap.entries.length; i++) {
+        var entry = snap.entries[i];
+        var name = String(entry.name || '');
+        nodeFacts.push({
+          component: snap.name,
+          componentRole: snap.role,
+          relation: snap.role === 'linked' ? String(snap.relation || '') : '',
+          name: name,
+          type: String(entry.type || ''),
+          path: String(entry.pathText || ''),
+          chineseRole: String(entry.label || ''),
+          note: String(entry.note || ''),
+          componentBoundary: entry.nestedComponentBoundary === true
+        });
+        if (name && !seenNames[name]) {
+          seenNames[name] = true;
+          requiredNodeNames.push(name);
+        }
+      }
+    }
+    var handoffText = buildAiLines().join('\n');
+    var requirementMarker = '\n==================================================\n转写要求\n';
+    var markerIndex = handoffText.indexOf(requirementMarker);
+    var evidenceText = markerIndex >= 0 ? handoffText.slice(0, markerIndex) : handoffText;
+    return {
+      handoffText: handoffText,
+      evidenceText: evidenceText,
+      nodeFacts: nodeFacts,
+      requiredNodeNames: requiredNodeNames
+    };
+  }
+
+  function mmdIssue(code, message, severity) {
+    return { code: code, message: message, severity: severity || 'error' };
+  }
+
+  function validateGeneratedMmd(mmd, context) {
+    var text = String(mmd || '').trim();
+    var ctx = context || { evidenceText: '', requiredNodeNames: [], nodeFacts: [] };
+    var evidence = String(ctx.evidenceText || '');
+    var issues = [];
+    if (!text) return [mmdIssue('empty', '生成结果为空。')];
+    if (!/(^|\n)\s*sequenceDiagram\s*(\n|$)/.test(text)) issues.push(mmdIssue('sequence-diagram', '缺少 Mermaid sequenceDiagram 声明。'));
+    if (/```/.test(text)) issues.push(mmdIssue('code-fence', 'MMD 中含有 Markdown 代码围栏，必须移除。'));
+    if (text.indexOf('初始摆放阶段') < 0) issues.push(mmdIssue('initial-phase', '缺少“初始摆放阶段”。'));
+    if (!/rect\s+rgb\(240\s*,\s*240\s*,\s*240\)/i.test(text)) issues.push(mmdIssue('initial-rect', '初始摆放阶段未使用 rect rgb(240,240,240)。'));
+
+    var missing = [];
+    var required = Array.isArray(ctx.requiredNodeNames) ? ctx.requiredNodeNames : [];
+    for (var i = 0; i < required.length; i++) {
+      if (text.indexOf(required[i]) < 0) missing.push(required[i]);
+    }
+    if (missing.length) {
+      var shown = missing.slice(0, 60);
+      issues.push(mmdIssue('missing-real-nodes', '遗漏真实节点 ' + missing.length + ' 个：' + shown.join('、') + (missing.length > shown.length ? '……' : '')));
+    }
+
+    var allowed = Object.create(null);
+    for (var a = 0; a < required.length; a++) allowed[required[a]] = true;
+    var backtickRe = /`([^`\r\n]+)`/g;
+    var inventedRefs = [];
+    var refMatch;
+    while ((refMatch = backtickRe.exec(text))) {
+      var ref = String(refMatch[1] || '').trim();
+      if (ref && !allowed[ref] && evidence.indexOf(ref) < 0 && inventedRefs.indexOf(ref) < 0) inventedRefs.push(ref);
+    }
+    if (inventedRefs.length) issues.push(mmdIssue('unknown-node-refs', '出现资料外的反引号节点引用：' + inventedRefs.slice(0, 30).join('、')));
+
+    var speculativeTerms = ['创建', '新增列表项', '删除', '移除列表项', '销毁', '刷新', '更新列表', '重新生成', '重新排列', '复用', '刷新频率', '合并算法'];
+    var unsupportedTerms = [];
+    for (var t = 0; t < speculativeTerms.length; t++) {
+      var term = speculativeTerms[t];
+      if (text.indexOf(term) >= 0 && evidence.indexOf(term) < 0) unsupportedTerms.push(term);
+    }
+    if (unsupportedTerms.length) issues.push(mmdIssue('unsupported-behavior', '出现交接资料未提供的程序行为：' + unsupportedTerms.join('、')));
+
+    var inventedProgramTerms = ['API', '接口调用', '回调', '事件', '变量', '状态机'];
+    var unsupportedProgramTerms = [];
+    for (var p = 0; p < inventedProgramTerms.length; p++) {
+      var programTerm = inventedProgramTerms[p];
+      if (text.indexOf(programTerm) >= 0 && evidence.indexOf(programTerm) < 0) unsupportedProgramTerms.push(programTerm);
+    }
+    if (unsupportedProgramTerms.length) issues.push(mmdIssue('invented-program-logic', '出现交接资料未提供的程序概念：' + unsupportedProgramTerms.join('、')));
+
+    var initMatch = text.match(/初始摆放阶段[\s\S]*?(?=\n\s*end(?:\s|$))/);
+    if (initMatch) {
+      var runtimeTerms = ['满足条件', '触发后', '变化时', '刷新', '创建列表项', '新增列表项', '删除列表项', '销毁', '更新列表', '重新生成'];
+      var runtimeInInitial = [];
+      for (var r = 0; r < runtimeTerms.length; r++) if (initMatch[0].indexOf(runtimeTerms[r]) >= 0) runtimeInInitial.push(runtimeTerms[r]);
+      if (runtimeInInitial.length) issues.push(mmdIssue('runtime-in-initial', '初始摆放阶段混入运行时行为：' + runtimeInInitial.join('、')));
+    }
+    return issues;
+  }
+
+  function formatMmdValidation(issues, modelWarnings, evidenceGaps) {
+    var lines = [];
+    var list = Array.isArray(issues) ? issues : [];
+    if (!list.length) lines.push('✓ 本地硬规则校验通过。');
+    else {
+      lines.push('发现 ' + list.length + ' 项需要处理：');
+      for (var i = 0; i < list.length; i++) lines.push('- ' + list[i].message);
+    }
+    var warnings = Array.isArray(modelWarnings) ? modelWarnings : [];
+    if (warnings.length) {
+      lines.push('');
+      lines.push('DeepSeek 自报提醒：');
+      for (var w = 0; w < warnings.length; w++) lines.push('- ' + warnings[w]);
+    }
+    var gaps = Array.isArray(evidenceGaps) ? evidenceGaps : [];
+    if (gaps.length) {
+      lines.push('');
+      lines.push('资料缺口（未写入 MMD）：');
+      for (var g = 0; g < gaps.length; g++) lines.push('- ' + gaps[g]);
+    }
+    return lines.join('\n');
+  }
+
+  function renderMmdValidation(issues) {
+    var list = Array.isArray(issues) ? issues : [];
+    mmdValidationEl.textContent = formatMmdValidation(list, deepseekLastModelWarnings, deepseekLastEvidenceGaps);
+    mmdValidationEl.classList.toggle('warn', list.length > 0);
+    mmdValidationEl.classList.toggle('ok', list.length === 0 && !!String(mmdOutputEl.value || '').trim());
+  }
+
+  function setDeepSeekBusy(busy, message) {
+    generateMmdEl.disabled = busy === true;
+    deepseekSaveEl.disabled = busy === true;
+    deepseekClearEl.disabled = busy === true;
+    deepseekStatusEl.classList.toggle('busy', busy === true);
+    if (message) deepseekStatusEl.textContent = message;
+  }
+
+  function postDeepSeekGeneration(mode, context, draft, issues) {
+    deepseekRequestSeq++;
+    deepseekPendingRequestId = 'deepseek-' + Date.now() + '-' + deepseekRequestSeq;
+    var issueMessages = (issues || []).map(function(issue){ return issue.message || String(issue); });
+    parent.postMessage({ pluginMessage: {
+      type: 'generate-mmd-deepseek',
+      requestId: deepseekPendingRequestId,
+      mode: mode,
+      apiKey: String(deepseekApiKeyEl.value || '').trim(),
+      rememberKey: deepseekRememberKeyEl.checked === true,
+      model: deepseekModelEl.value,
+      thinking: deepseekThinkingEl.checked === true,
+      handoffText: context.handoffText,
+      nodeFacts: context.nodeFacts,
+      draftMmd: String(draft || ''),
+      validationIssues: issueMessages
+    } }, '*');
+  }
+
+  function startDeepSeekGeneration() {
+    if (!workspace || !mainState()) {
+      deepseekStatusEl.textContent = '请先选择主组件并完成交接资料。';
+      deepseekStatusEl.className = 'mmd-request-status error';
+      return;
+    }
+    if (!String(deepseekApiKeyEl.value || '').trim() && !deepseekHasApiKey) {
+      deepseekStatusEl.textContent = '请先填写 DeepSeek API Key。';
+      deepseekStatusEl.className = 'mmd-request-status error';
+      deepseekApiKeyEl.focus();
+      return;
+    }
+    deepseekLastContext = buildMmdGenerationContext();
+    deepseekRepairAttempted = false;
+    deepseekLastModelWarnings = [];
+    deepseekLastEvidenceGaps = [];
+    deepseekUsageEl.textContent = '';
+    mmdValidationEl.textContent = '生成完成后将自动执行本地硬规则校验。';
+    mmdValidationEl.className = 'mmd-validation';
+    setDeepSeekBusy(true, '正在发送完整交接资料并生成 MMD…');
+    deepseekStatusEl.className = 'mmd-request-status busy';
+    postDeepSeekGeneration('generate', deepseekLastContext, '', []);
+  }
+
+  function completeDeepSeekGeneration(msg) {
+    var mmd = String(msg.mmd || '').trim();
+    mmdOutputEl.value = mmd;
+    deepseekLastModelWarnings = Array.isArray(msg.warnings) ? msg.warnings : [];
+    deepseekLastEvidenceGaps = Array.isArray(msg.evidenceGaps) ? msg.evidenceGaps : [];
+    var issues = validateGeneratedMmd(mmd, deepseekLastContext);
+    renderMmdValidation(issues);
+    if (msg.mode === 'generate' && issues.length && deepseekAutoRepairEl.checked && !deepseekRepairAttempted) {
+      deepseekRepairAttempted = true;
+      setDeepSeekBusy(true, '首次结果发现 ' + issues.length + ' 项高风险问题，正在自动修正一次…');
+      deepseekStatusEl.className = 'mmd-request-status busy';
+      postDeepSeekGeneration('repair', deepseekLastContext, mmd, issues);
+      return;
+    }
+    setDeepSeekBusy(false);
+    deepseekStatusEl.className = 'mmd-request-status ' + (issues.length ? 'error' : 'ok');
+    deepseekStatusEl.textContent = issues.length
+      ? '生成完成，但仍有 ' + issues.length + ' 项本地校验问题；请查看下方清单后人工确认。'
+      : '生成完成，本地硬规则校验通过。模型：' + String(msg.model || deepseekModelEl.value);
+    var usage = msg.usage || {};
+    deepseekUsageEl.textContent = usage.total_tokens != null ? ('Tokens：输入 ' + (usage.prompt_tokens || 0) + ' / 输出 ' + (usage.completion_tokens || 0) + ' / 合计 ' + usage.total_tokens) : '';
+    deepseekApiKeyEl.value = '';
+    if (deepseekRememberKeyEl.checked) {
+      deepseekHasApiKey = true;
+      deepseekKeyStatusEl.textContent = 'Key 已保存在本机';
+      deepseekKeyStatusEl.classList.add('ready');
+    }
   }
 
 
@@ -4769,6 +5066,39 @@
   window.onmessage = function(event){
     var msg = event.data && event.data.pluginMessage;
     if (!msg) return;
+    if (msg.type === 'deepseek-settings') {
+      deepseekHasApiKey = msg.hasApiKey === true;
+      deepseekModelEl.value = msg.model === 'deepseek-v4-flash' ? 'deepseek-v4-flash' : 'deepseek-v4-pro';
+      deepseekThinkingEl.checked = msg.thinking === true;
+      deepseekKeyStatusEl.textContent = deepseekHasApiKey ? 'Key 已保存在本机' : '未保存 API Key';
+      deepseekKeyStatusEl.classList.toggle('ready', deepseekHasApiKey);
+      deepseekApiKeyEl.placeholder = deepseekHasApiKey ? '已保存；如需替换请输入新 Key' : '输入 DeepSeek API Key';
+      if (msg.message) {
+        if (deepseekHasApiKey) deepseekApiKeyEl.value = '';
+        deepseekStatusEl.textContent = msg.message;
+        deepseekStatusEl.className = 'mmd-request-status ok';
+      }
+      return;
+    }
+    if (msg.type === 'deepseek-settings-error') {
+      deepseekStatusEl.textContent = 'DeepSeek 设置保存失败：' + (msg.message || '未知错误');
+      deepseekStatusEl.className = 'mmd-request-status error';
+      return;
+    }
+    if (msg.type === 'deepseek-mmd-result') {
+      if (String(msg.requestId || '') !== deepseekPendingRequestId) return;
+      deepseekPendingRequestId = '';
+      completeDeepSeekGeneration(msg);
+      return;
+    }
+    if (msg.type === 'deepseek-mmd-error') {
+      if (String(msg.requestId || '') !== deepseekPendingRequestId) return;
+      deepseekPendingRequestId = '';
+      setDeepSeekBusy(false);
+      deepseekStatusEl.textContent = 'MMD 生成失败：' + (msg.message || '未知错误');
+      deepseekStatusEl.className = 'mmd-request-status error';
+      return;
+    }
     if (msg.type === 'workspace-navigation-data') {
       savedWorkspaceNavigations = (Array.isArray(msg.navigations) ? msg.navigations : []).map(normalizeWorkspaceNavigationRecord).filter(Boolean);
       var matchedNav = findSavedNavigationForRoots(roots) || findSavedNavigationForCurrentFile();
@@ -4981,6 +5311,32 @@
     statusEl.textContent = '已清空当前交互工作区的交互说明。';
   });
 
+  generateMmdEl.addEventListener('click', startDeepSeekGeneration);
+  deepseekSaveEl.addEventListener('click', function(){
+    parent.postMessage({ pluginMessage: {
+      type: 'save-deepseek-settings',
+      apiKey: String(deepseekApiKeyEl.value || '').trim(),
+      model: deepseekModelEl.value,
+      thinking: deepseekThinkingEl.checked === true
+    } }, '*');
+  });
+  deepseekClearEl.addEventListener('click', function(){
+    if (!window.confirm('确定清除本机保存的 DeepSeek API Key 吗？')) return;
+    parent.postMessage({ pluginMessage: { type: 'clear-deepseek-api-key' } }, '*');
+    deepseekApiKeyEl.value = '';
+  });
+  document.getElementById('copyMmd').addEventListener('click', function(){
+    copyText(mmdOutputEl.value || '', '已复制 MMD');
+  });
+  document.getElementById('downloadMmd').addEventListener('click', function(){
+    if (!String(mmdOutputEl.value || '').trim()) { deepseekStatusEl.textContent = '当前没有可导出的 MMD。'; return; }
+    downloadBlob(new Blob([mmdOutputEl.value], { type: 'text/plain;charset=utf-8' }), workspaceSafeFileName() + '.mmd');
+  });
+  mmdOutputEl.addEventListener('input', function(){
+    if (!deepseekLastContext) return;
+    renderMmdValidation(validateGeneratedMmd(this.value, deepseekLastContext));
+  });
+
   includeTypesEl.addEventListener('change', function(){ renderNotes(); renderTreeViewer(); });
   syncSelectionEl.addEventListener('change', updateSelectionOptions);
   focusSelectionEl.addEventListener('change', function(){
@@ -5033,6 +5389,7 @@
   });
 
   updateSelectionOptions();
+  parent.postMessage({ pluginMessage: { type: 'request-deepseek-settings' } }, '*');
   parent.postMessage({ pluginMessage: { type: 'request-workspace-navigation' } }, '*');
   parent.postMessage({ pluginMessage: { type: 'request-selection' } }, '*');
 })();

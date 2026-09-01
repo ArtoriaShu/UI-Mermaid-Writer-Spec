@@ -1,6 +1,20 @@
 Concept & Vibe Coding by Shu
 
-# UI Node Tree & Notes Exporter v10.10 Sidepanel Preview
+# UI Node Tree & Notes Exporter v10.11 DeepSeek MMD Preview
+
+## v10.11 DeepSeek MMD Preview
+
+- 在独立“生成 MMD”页接入 DeepSeek Chat Completions API，可直接把当前完整交接文档生成 Mermaid `sequenceDiagram`。
+- API Key 只保存到本机 `figma.clientStorage`，不会写入源码、备注 JSON、组件资料、交接文档或 MMD。
+- 网络权限只允许 `https://api.deepseek.com`；除用户主动保存设置或生成 MMD 外，插件不会发送请求。
+- 默认模型为 `deepseek-v4-pro` 非思考模式、低温度；可切换 `deepseek-v4-flash` 或手动开启深度思考。
+- 请求使用 JSON Output，响应只接受 `mmd / warnings / evidence_gaps`，空响应或无效 JSON 自动重试一次。
+- 固定系统约束强调“可以理解、整理、归纳，但不能创造”，禁止擅自补充创建、销毁、新增、删除、刷新、复用、状态机、API、事件、变量或程序算法。
+- 生成后执行本地硬规则校验：检查 `sequenceDiagram`、初始摆放阶段、真实节点遗漏、未知反引号节点、资料外程序行为与初始化阶段运行时逻辑。
+- 默认在发现高风险问题时自动修正一次；第二次仍未通过时保留结果并明确列出问题，交由人工确认。
+- 新增 `tests/deepseek-mmd-guardrails.regression.test.js`，覆盖 API 请求契约、JSON 解析、节点遗漏和防脑补校验。
+
+详细说明见 [`DEEPSEEK_MMD.md`](DEEPSEEK_MMD.md)。
 
 ## v10.10 Sidepanel Preview
 
@@ -791,14 +805,16 @@ manifest ID 与之前版本保持一致，可直接重新导入开发插件。
 - 不使用 `setPluginData`；
 - 不写入 Figma 节点；
 - 不修改共享设计稿；
-- 不使用 `fetch` / WebSocket / CDN；
+- 不使用 WebSocket / CDN；
+- 只有用户主动点击生成 MMD 时才使用 `fetch` 请求 DeepSeek；
+- API Key 只写入本机 `figma.clientStorage`，不会进入导出资料；
 - 不连接外部 Figma 服务。
 
 `manifest.json`：
 
 ```json
 "networkAccess": {
-  "allowedDomains": ["none"]
+  "allowedDomains": ["https://api.deepseek.com"]
 }
 ```
 

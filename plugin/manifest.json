@@ -11,7 +11,7 @@
   "enablePrivatePluginApi": true,
   "networkAccess": {
     "allowedDomains": [
-      "none"
+      "https://api.deepseek.com"
     ]
   }
 }
