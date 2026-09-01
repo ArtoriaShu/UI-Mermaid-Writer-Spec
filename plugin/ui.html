@@ -3345,6 +3345,65 @@
     return automatic;
   }
 
+  function splitStructurePath(pathText) {
+    return String(pathText || '').split(/\s+\/\s+/).map(function(part){ return String(part || '').trim(); }).filter(function(part){ return !!part; });
+  }
+
+  function isStructurePathPrefix(parentNodes, childNodes) {
+    if (!parentNodes || !childNodes || parentNodes.length >= childNodes.length) return false;
+    for (var i = 0; i < parentNodes.length; i++) if (parentNodes[i] !== childNodes[i]) return false;
+    return true;
+  }
+
+  function buildStructureContractsFromSnapshots(snapshots) {
+    var contracts = [];
+    var source = Array.isArray(snapshots) ? snapshots : [];
+    for (var s = 0; s < source.length; s++) {
+      var snap = source[s] || {};
+      var records = [];
+      var seen = Object.create(null);
+      var entries = Array.isArray(snap.entries) ? snap.entries : [];
+      for (var e = 0; e < entries.length; e++) {
+        var nodes = splitStructurePath(entries[e] && entries[e].pathText);
+        if (nodes.length < 2) continue;
+        var key = nodes.join('\u0000');
+        if (seen[key]) continue;
+        seen[key] = true;
+        records.push({ nodes: nodes, text: nodes.join(' → ') });
+      }
+      var leafPaths = records.filter(function(record){
+        for (var r = 0; r < records.length; r++) if (isStructurePathPrefix(record.nodes, records[r].nodes)) return false;
+        return true;
+      });
+      if (leafPaths.length) {
+        contracts.push({
+          component: String(snap.name || ''),
+          componentRole: snap.role === 'main' ? 'main' : 'linked',
+          relation: snap.role === 'linked' ? String(snap.relation || '') : '',
+          paths: leafPaths
+        });
+      }
+    }
+    return contracts;
+  }
+
+  function buildParticipantRoleDictionary(nodeFacts) {
+    var roles = [];
+    var seen = Object.create(null);
+    var facts = Array.isArray(nodeFacts) ? nodeFacts : [];
+    for (var i = 0; i < facts.length; i++) {
+      var fact = facts[i] || {};
+      var role = String(fact.chineseRole || '').trim();
+      var name = String(fact.name || '').trim();
+      if (!name || !role) continue;
+      var key = String(fact.component || '') + '\u0000' + name;
+      if (seen[key]) continue;
+      seen[key] = true;
+      roles.push({ component: String(fact.component || ''), name: name, chineseRole: role });
+    }
+    return roles;
+  }
+
   function buildMmdGenerationContext() {
     if (activeState) persistActiveState();
     var audit = buildReferenceAudit();
@@ -3383,6 +3442,8 @@
       handoffEdited: hasHandoffOverride(),
       evidenceText: evidenceText,
       nodeFacts: nodeFacts,
+      structureContracts: buildStructureContractsFromSnapshots(audit.snapshots),
+      participantRoles: buildParticipantRoleDictionary(nodeFacts),
       requiredNodeNames: requiredNodeNames
     };
   }
@@ -3393,7 +3454,7 @@
 
   function validateGeneratedMmd(mmd, context) {
     var text = String(mmd || '').trim();
-    var ctx = context || { evidenceText: '', requiredNodeNames: [], nodeFacts: [] };
+    var ctx = context || { evidenceText: '', requiredNodeNames: [], nodeFacts: [], structureContracts: [] };
     var evidence = String(ctx.evidenceText || '');
     var issues = [];
     if (!text) return [mmdIssue('empty', '生成结果为空。')];
@@ -3410,6 +3471,29 @@
     if (missing.length) {
       var shown = missing.slice(0, 60);
       issues.push(mmdIssue('missing-real-nodes', '遗漏真实节点 ' + missing.length + ' 个：' + shown.join('、') + (missing.length > shown.length ? '……' : '')));
+    }
+
+    var initMatch = text.match(/初始摆放阶段[\s\S]*?(?=\n\s*end(?:\s|$))/);
+    var normalizedInitial = String(initMatch && initMatch[0] || '')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/[`\s]/g, '')
+      .replace(/(?:--?>|=>|⇒|➜|➝|⟶)/g, '→');
+    var missingStructureChains = [];
+    var structureContracts = Array.isArray(ctx.structureContracts) ? ctx.structureContracts : [];
+    for (var sc = 0; sc < structureContracts.length; sc++) {
+      var structureContract = structureContracts[sc] || {};
+      var structurePaths = Array.isArray(structureContract.paths) ? structureContract.paths : [];
+      for (var sp = 0; sp < structurePaths.length; sp++) {
+        var structureText = String(structurePaths[sp] && structurePaths[sp].text || '');
+        var normalizedStructureText = structureText.replace(/[`\s]/g, '').replace(/(?:--?>|=>|⇒|➜|➝|⟶)/g, '→');
+        if (normalizedStructureText && normalizedInitial.indexOf(normalizedStructureText) < 0) {
+          missingStructureChains.push('[' + String(structureContract.component || '') + '] ' + structureText);
+        }
+      }
+    }
+    if (missingStructureChains.length) {
+      var shownChains = missingStructureChains.slice(0, 40);
+      issues.push(mmdIssue('missing-structure-chains', '初始摆放阶段遗漏或压缩了完整父子链 ' + missingStructureChains.length + ' 条：' + shownChains.join('；') + (missingStructureChains.length > shownChains.length ? '……' : '')));
     }
 
     var participantLines = text.split('\n').filter(function(line){ return /^\s*participant\s+/.test(line); });
@@ -3460,7 +3544,6 @@
     }
     if (unsupportedProgramTerms.length) issues.push(mmdIssue('invented-program-logic', '出现交接资料未提供的程序概念：' + unsupportedProgramTerms.join('、')));
 
-    var initMatch = text.match(/初始摆放阶段[\s\S]*?(?=\n\s*end(?:\s|$))/);
     if (initMatch) {
       var runtimeTerms = ['满足条件', '触发后', '变化时', '刷新', '创建列表项', '新增列表项', '删除列表项', '销毁', '更新列表', '重新生成'];
       var runtimeInInitial = [];
@@ -3522,7 +3605,7 @@
   function postDeepSeekGeneration(mode, context, draft, issues) {
     deepseekRequestSeq++;
     deepseekPendingRequestId = 'deepseek-' + Date.now() + '-' + deepseekRequestSeq;
-    var issueMessages = (issues || []).map(function(issue){ return issue.message || String(issue); });
+    var issueDetails = (issues || []).map(function(issue){ return { code: String(issue.code || 'unknown'), message: String(issue.message || issue) }; });
     parent.postMessage({ pluginMessage: {
       type: 'generate-mmd-deepseek',
       requestId: deepseekPendingRequestId,
@@ -3533,9 +3616,10 @@
       thinking: deepseekThinkingEl.checked === true,
       handoffText: context.handoffText,
       handoffEdited: context.handoffEdited === true,
-      nodeFacts: context.nodeFacts,
+      structureContracts: context.structureContracts,
+      participantRoles: context.participantRoles,
       draftMmd: String(draft || ''),
-      validationIssues: issueMessages
+      validationIssues: issueDetails
     } }, '*');
   }
 

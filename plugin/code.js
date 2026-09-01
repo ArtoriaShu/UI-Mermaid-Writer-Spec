@@ -301,7 +301,7 @@ function deepSeekSystemPrompt() {
     '执行顺序是强制的：',
     '第一步：从【SKILL 原文开始】一直读到【SKILL 原文结束】，完整通读，中途不得开始生成。',
     '第二步：从【规范原文开始】一直读到【规范原文结束】，完整通读，中途不得开始生成。',
-    '第三步：读完两份原文后，再读取用户消息中的未忽略业务节点清单与完整交接资料。',
+    '第三步：读完两份原文后，再读取用户消息中的完整交接资料、确定性结构链与 participant 中文作用字典。',
     '第四步：同时遵守完整 Skill 与完整规范开始生成；发生歧义时，以完整规范为权威，并采用不创造事实的保守解释。',
     '',
     '不得只依据摘要、局部章节或关键词生成。以下两份原文不是参考摘录，而是本次任务必须完整执行的规则包。',
@@ -310,7 +310,7 @@ function deepSeekSystemPrompt() {
     '',
     '本次生成额外硬约束：',
     'A. 初始摆放阶段只允许静态事实。任何“当……时 / 未满足……时 / 玩家死亡时 / 受到影响时 / 出现条件 / 消失条件 / 触发后 / 变化时”等运行时条件，即使资料明确提供，也必须写在初始 rect 的 end 之后。',
-    'B. nodeFacts 中 chineseRole 非空时，participant 的中文作用必须逐字复制 chineseRole，不得概括、缩写、换同义词、调整语序或润色。',
+    'B. participant 中文作用字典中已有值时，participant 的中文作用必须逐字复制，不得概括、缩写、换同义词、调整语序或润色。',
     'C. 不得把“数值为正 / 数值为负分别对应两套背景”自行升格为“互斥状态”；只有资料明确使用互斥语义时才能写互斥。保守写成“两种背景表现，无先后顺序”。',
     '',
     'API 传输层必须输出一个合法 JSON 对象，格式固定为：',
@@ -333,13 +333,24 @@ function deepSeekSystemPrompt() {
 function deepSeekUserPrompt(msg, attempt) {
   var mode = msg && msg.mode === 'repair' ? 'repair' : 'generate';
   var handoff = String(msg && msg.handoffText || '');
-  var nodeFacts = Array.isArray(msg && msg.nodeFacts) ? msg.nodeFacts : [];
+  var structureContracts = Array.isArray(msg && msg.structureContracts) ? msg.structureContracts : [];
+  var participantRoles = Array.isArray(msg && msg.participantRoles) ? msg.participantRoles : [];
   var lines = [];
   if (mode === 'repair') {
-    lines.push('任务：修正下面的 MMD 草稿。只修正校验问题，不新增任何交接资料之外的事实。');
+    lines.push('任务：对下面的 MMD 草稿执行最小范围修正。只修正本地校验明确指出的问题，不新增任何交接资料之外的事实。');
+    lines.push('未被校验问题点名的 participant、完整结构链、状态标题、状态内容、Note 与先后顺序必须逐行保留，不得顺便概括、缩写、润色或重写整份 MMD。');
+    lines.push('定向修正规则：缺少结构链时，只把缺失链按原文补入初始摆放阶段；运行时条件混入初始化时，只把对应句移动到初始 end 之后；participant 中文作用错误时，只替换该 participant 的中文作用。');
     lines.push('');
     lines.push('【本地校验问题】');
-    lines.push((Array.isArray(msg.validationIssues) ? msg.validationIssues : []).join('\n') || '[无]');
+    var validationIssues = Array.isArray(msg.validationIssues) ? msg.validationIssues : [];
+    if (validationIssues.length) {
+      for (var vi = 0; vi < validationIssues.length; vi++) {
+        var issue = validationIssues[vi] || {};
+        lines.push('- [' + String(issue.code || 'unknown') + '] ' + String(issue.message || issue));
+      }
+    } else {
+      lines.push('[无]');
+    }
     lines.push('');
     lines.push('【待修正 MMD】');
     lines.push(String(msg.draftMmd || ''));
@@ -349,17 +360,34 @@ function deepSeekUserPrompt(msg, attempt) {
     lines.push('');
   }
   lines.push('【事实来源分工】');
-  lines.push('1. 未忽略业务节点清单是节点真实名称、类型、路径和组件边界的权威来源，不得用交接文档中的语义描述改写这些结构事实。');
-  lines.push('2. 当前交接资料是业务语义、交互说明、状态、动态值和用户测试修正的主要来源。');
-  lines.push('3. 交接资料中的【手动测试修正】属于用户最新修正，业务语义优先级最高，但不得凭空创造结构化节点清单中不存在的 Figma 节点或父子层级。');
-  lines.push('4. 两类事实冲突时，不得静默选择或自行补全：保留结构化节点事实，并把业务冲突写入 evidence_gaps。');
+  lines.push('1. 完整交接资料是本次生成的主要输入。必须按原始顺序完整阅读其中的主组件、关联组件、自然树状节点结构、节点说明、状态、动态值、交互说明与用户测试修正。');
+  lines.push('2. “本次必须覆盖的结构链”由插件从未忽略业务节点的真实路径确定性生成，只用于防止遗漏或压缩中间容器；它不能替代、概括或削弱完整交接资料。');
+  lines.push('3. 每条结构链必须在初始摆放阶段以完全相同的真实节点顺序出现一次，使用“节点A → 节点B → 节点C”格式；不得只把各节点名称分散写在不同位置。');
+  lines.push('4. 不同组件的结构链必须分别描述。主组件遇到 INSTANCE 组件边界时到实例节点为止；关联组件内部结构只在该关联组件自己的结构说明中展开。');
+  lines.push('5. 交接资料中的【手动测试修正】属于用户最新修正，业务语义优先级最高，但不得凭空创造结构契约中不存在的 Figma 节点或父子层级。');
+  lines.push('6. 若交接资料与结构链发生冲突，不得静默选择或自行补全：保留确定性的结构链，并把业务冲突写入 evidence_gaps。');
   lines.push('当前交接资料模式：' + (msg && msg.handoffEdited === true ? '用户手动修改版' : '插件自动生成版'));
   lines.push('');
-  lines.push('【未忽略业务节点清单 JSON】');
-  lines.push(JSON.stringify(nodeFacts, null, 2));
-  lines.push('');
-  lines.push('【完整交接资料】');
+  lines.push('【完整交接资料（主要输入）】');
   lines.push(handoff);
+  lines.push('');
+  lines.push('【本次必须覆盖的结构链（确定性校验契约）】');
+  if (structureContracts.length) {
+    for (var sc = 0; sc < structureContracts.length; sc++) {
+      var contract = structureContracts[sc] || {};
+      lines.push('组件：' + String(contract.component || '') + '（' + (contract.componentRole === 'main' ? '主组件' : '关联组件') + '）');
+      if (contract.relation) lines.push('关系说明：' + String(contract.relation));
+      var paths = Array.isArray(contract.paths) ? contract.paths : [];
+      for (var sp = 0; sp < paths.length; sp++) lines.push('- ' + String(paths[sp] && paths[sp].text || ''));
+    }
+  } else {
+    lines.push('[没有长度大于 1 的业务结构链；仍须依据完整交接资料生成]');
+  }
+  lines.push('');
+  lines.push('【participant 中文作用字典】');
+  lines.push(participantRoles.length ? JSON.stringify(participantRoles, null, 2) : '[无]');
+  lines.push('');
+  lines.push('生成顺序：先逐条落实初始摆放阶段的结构链，再组织初始阶段之外的运行时状态，最后逐条核对结构契约；不得用状态整洁性换取结构省略。');
   lines.push('');
   lines.push('输出必须是前述 JSON 对象。不得输出 Markdown 代码围栏。');
   if (attempt > 0) lines.push('上一次响应为空或格式无效；这次务必返回可解析 JSON，并完整填写 mmd 字段。');

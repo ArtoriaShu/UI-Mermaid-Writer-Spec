@@ -44,7 +44,12 @@ function testDeepSeekRequestContract() {
     thinking: false,
     handoffEdited: true,
     handoffText: '事实',
-    nodeFacts: [{ name: 'frame_real' }]
+    structureContracts: [{
+      component: 'frame_real',
+      componentRole: 'main',
+      paths: [{ text: 'frame_real → img_leaf', nodes: ['frame_real', 'img_leaf'] }]
+    }],
+    participantRoles: [{ component: 'frame_real', name: 'frame_real', chineseRole: '真实组件' }]
   }, 0);
   assert.equal(body.model, 'deepseek-v4-pro');
   assert.equal(body.temperature, 0.1);
@@ -55,9 +60,23 @@ function testDeepSeekRequestContract() {
   assert.ok(body.messages[0].content.includes('【SKILL 原文开始】\n' + skill + '\n【SKILL 原文结束】'));
   assert.ok(body.messages[0].content.includes('【规范原文开始】\n' + specification + '\n【规范原文结束】'));
   assert.ok(body.messages[0].content.indexOf('【SKILL 原文结束】') < body.messages[0].content.indexOf('【规范原文开始】'));
-  assert.match(body.messages[1].content, /未忽略业务节点清单 JSON/);
+  assert.doesNotMatch(body.messages[1].content, /未忽略业务节点清单 JSON/);
+  assert.match(body.messages[1].content, /完整交接资料（主要输入）/);
+  assert.match(body.messages[1].content, /本次必须覆盖的结构链（确定性校验契约）/);
+  assert.match(body.messages[1].content, /frame_real → img_leaf/);
+  assert.match(body.messages[1].content, /participant 中文作用字典/);
   assert.match(body.messages[1].content, /当前交接资料模式：用户手动修改版/);
-  assert.match(body.messages[1].content, /当前交接资料是业务语义、交互说明、状态、动态值和用户测试修正的主要来源/);
+  assert.match(body.messages[1].content, /完整交接资料是本次生成的主要输入/);
+
+  const repairBody = context.buildDeepSeekRequestBody({
+    mode: 'repair',
+    handoffText: '事实',
+    draftMmd: 'sequenceDiagram',
+    validationIssues: [{ code: 'missing-structure-chains', message: '遗漏结构链' }]
+  }, 0);
+  assert.match(repairBody.messages[1].content, /执行最小范围修正/);
+  assert.match(repairBody.messages[1].content, /不得顺便概括、缩写、润色或重写整份 MMD/);
+  assert.match(repairBody.messages[1].content, /\[missing-structure-chains\] 遗漏结构链/);
 
   const thinkingBody = context.buildDeepSeekRequestBody({ model: 'deepseek-v4-flash', thinking: true }, 0);
   assert.equal(thinkingBody.model, 'deepseek-v4-flash');
@@ -117,7 +136,8 @@ async function testDeepSeekTransport() {
     model: 'deepseek-v4-pro',
     thinking: false,
     handoffText: '事实',
-    nodeFacts: [{ name: 'frame_real' }]
+    structureContracts: [{ component: 'frame_real', componentRole: 'main', paths: [{ text: 'frame_real → img_leaf' }] }],
+    participantRoles: [{ component: 'frame_real', name: 'frame_real', chineseRole: '真实组件' }]
   });
   assert.equal(requests.length, 1);
   assert.equal(requests[0].url, 'https://api.deepseek.com/chat/completions');
@@ -192,6 +212,17 @@ function loadUiValidator() {
   return context;
 }
 
+function loadUiStructureContractBuilder() {
+  const html = fs.readFileSync(path.join(pluginRoot, 'ui.html'), 'utf8');
+  const scriptMatch = html.match(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/i);
+  assert.ok(scriptMatch, 'ui.html must contain an inline script');
+  const functions = between(scriptMatch[1], '  function splitStructurePath', '  function buildMmdGenerationContext');
+  const context = {};
+  vm.createContext(context);
+  vm.runInContext(functions, context);
+  return context;
+}
+
 function validMmd() {
   return [
     'sequenceDiagram',
@@ -199,7 +230,7 @@ function validMmd() {
     '    participant Leaf as 图标<br/>(img_leaf)',
     '    rect rgb(240,240,240)',
     '    Note over Parent,Leaf: 初始摆放阶段',
-    '    Parent->>Leaf: frame_parent 下摆出 img_leaf',
+    '    Parent->>Leaf: frame_parent → img_leaf',
     '    end'
   ].join('\n');
 }
@@ -213,7 +244,8 @@ function testLocalGuardrails() {
   const facts = {
     evidenceText: 'frame_parent / img_leaf / 动态显示',
     requiredNodeNames: ['frame_parent', 'img_leaf'],
-    nodeFacts: []
+    nodeFacts: [],
+    structureContracts: [{ component: 'frame_parent', componentRole: 'main', paths: [{ text: 'frame_parent → img_leaf' }] }]
   };
   assert.deepEqual(issueCodes(context.validateGeneratedMmd(validMmd(), facts)), []);
 
@@ -224,11 +256,19 @@ function testLocalGuardrails() {
   const inventedCodes = issueCodes(context.validateGeneratedMmd(invented, facts));
   assert.ok(inventedCodes.includes('unsupported-behavior'));
 
-  const runtimeInitial = validMmd().replace('frame_parent 下摆出 img_leaf', '满足条件后刷新列表');
+  const runtimeInitial = validMmd().replace('frame_parent → img_leaf', '满足条件后刷新列表');
   assert.ok(issueCodes(context.validateGeneratedMmd(runtimeInitial, facts)).includes('runtime-in-initial'));
 
-  const conditionalInitial = validMmd().replace('frame_parent 下摆出 img_leaf', '未满足动态属性出现条件时，frame_dynamic_buff 中不显示 frame_hud_dynamic_attribute 条目');
+  const conditionalInitial = validMmd().replace('frame_parent → img_leaf', '未满足动态属性出现条件时，frame_dynamic_buff 中不显示 frame_hud_dynamic_attribute 条目');
   assert.ok(issueCodes(context.validateGeneratedMmd(conditionalInitial, facts)).includes('runtime-in-initial'));
+
+  const flattenedStructure = validMmd().replace('frame_parent → img_leaf', 'frame_parent 负责父容器；img_leaf 负责图标');
+  const flattenedCodes = issueCodes(context.validateGeneratedMmd(flattenedStructure, facts));
+  assert.equal(flattenedCodes.includes('missing-real-nodes'), false, 'scattered node names still satisfy the legacy name check');
+  assert.ok(flattenedCodes.includes('missing-structure-chains'), 'scattered node names must not satisfy structural coverage');
+
+  const chainOutsideInitial = validMmd().replace('frame_parent → img_leaf', 'frame_parent 与 img_leaf 已初始化') + '\n    Note over Parent,Leaf: frame_parent → img_leaf';
+  assert.ok(issueCodes(context.validateGeneratedMmd(chainOutsideInitial, facts)).includes('missing-structure-chains'), 'required chains must be inside the initial phase');
 
   const exactRoleMmd = validMmd() + '\n    participant AttrList as 英雄头像和该英雄造成影响的技能图标/装备图标的组件<br/>(frame_hud_dynamic_attribute_list)';
   const exactRoleFacts = {
@@ -255,6 +295,54 @@ function testLocalGuardrails() {
   assert.equal(issueCodes(context.validateGeneratedMmd(supported, supportedFacts)).includes('unsupported-behavior'), false);
 }
 
+function testStructureContracts() {
+  const context = loadUiStructureContractBuilder();
+  const snapshots = [{
+    name: 'buff_pc',
+    role: 'main',
+    entries: [
+      { pathText: 'buff_pc' },
+      { pathText: 'buff_pc / frame_dynamic_buff' },
+      { pathText: 'buff_pc / frame_dynamic_buff / frame_hud_dynamic_attribute' },
+      { pathText: 'buff_pc / frame_other' }
+    ]
+  }, {
+    name: 'frame_hud_dynamic_attribute',
+    role: 'linked',
+    relation: '主组件调用',
+    entries: [
+      { pathText: 'frame_hud_dynamic_attribute' },
+      { pathText: 'frame_hud_dynamic_attribute / frame_attribute_attribute / frame_attribute / txt_attribute_num' },
+      { pathText: 'frame_hud_dynamic_attribute / frame_attribute_attribute / frame_attribute / img_attribute' }
+    ]
+  }];
+  const contracts = JSON.parse(JSON.stringify(context.buildStructureContractsFromSnapshots(snapshots)));
+  assert.deepEqual(contracts, [{
+    component: 'buff_pc',
+    componentRole: 'main',
+    relation: '',
+    paths: [
+      { nodes: ['buff_pc', 'frame_dynamic_buff', 'frame_hud_dynamic_attribute'], text: 'buff_pc → frame_dynamic_buff → frame_hud_dynamic_attribute' },
+      { nodes: ['buff_pc', 'frame_other'], text: 'buff_pc → frame_other' }
+    ]
+  }, {
+    component: 'frame_hud_dynamic_attribute',
+    componentRole: 'linked',
+    relation: '主组件调用',
+    paths: [
+      { nodes: ['frame_hud_dynamic_attribute', 'frame_attribute_attribute', 'frame_attribute', 'txt_attribute_num'], text: 'frame_hud_dynamic_attribute → frame_attribute_attribute → frame_attribute → txt_attribute_num' },
+      { nodes: ['frame_hud_dynamic_attribute', 'frame_attribute_attribute', 'frame_attribute', 'img_attribute'], text: 'frame_hud_dynamic_attribute → frame_attribute_attribute → frame_attribute → img_attribute' }
+    ]
+  }]);
+
+  const roles = JSON.parse(JSON.stringify(context.buildParticipantRoleDictionary([
+    { component: 'buff_pc', name: 'buff_pc', chineseRole: '动态属性承载组件' },
+    { component: 'buff_pc', name: 'buff_pc', chineseRole: '重复值不会重复输出' },
+    { component: 'buff_pc', name: 'frame_empty', chineseRole: '' }
+  ])));
+  assert.deepEqual(roles, [{ component: 'buff_pc', name: 'buff_pc', chineseRole: '动态属性承载组件' }]);
+}
+
 function testManifestNetworkScope() {
   const manifest = JSON.parse(fs.readFileSync(path.join(pluginRoot, 'manifest.json'), 'utf8'));
   assert.deepEqual(manifest.networkAccess.allowedDomains, ['https://api.deepseek.com']);
@@ -265,6 +353,7 @@ async function main() {
   testDeepSeekRequestContract();
   await testDeepSeekTransport();
   await testUiFetchBridge();
+  testStructureContracts();
   testLocalGuardrails();
   testManifestNetworkScope();
   console.log('DeepSeek MMD guardrail regression tests passed.');
