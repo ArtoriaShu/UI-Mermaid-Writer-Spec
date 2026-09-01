@@ -5,11 +5,12 @@ Concept & Vibe Coding by Shu
 ## v10.11 DeepSeek MMD Preview
 
 - 在独立“生成 MMD”页接入 DeepSeek Chat Completions API，可直接把当前完整交接文档生成 Mermaid `sequenceDiagram`。
+- 每次生成和自动修正都会先向 DeepSeek 提供完整 Skill v1.3 与完整规范 v2.3，要求依次通读两份原文后再读取交接事实并开始写 MMD；不以摘要替代原文。
 - API Key 只保存到本机 `figma.clientStorage`，不会写入源码、备注 JSON、组件资料、交接文档或 MMD。
 - 网络权限只允许 `https://api.deepseek.com`；除用户主动保存设置或生成 MMD 外，插件不会发送请求。
 - 默认模型为 `deepseek-v4-pro` 非思考模式、低温度；可切换 `deepseek-v4-flash` 或手动开启深度思考。
 - 请求使用 JSON Output，响应只接受 `mmd / warnings / evidence_gaps`，空响应或无效 JSON 自动重试一次。
-- 固定系统约束强调“可以理解、整理、归纳，但不能创造”，禁止擅自补充创建、销毁、新增、删除、刷新、复用、状态机、API、事件、变量或程序算法。
+- 完整 Skill 与规范共同强调“可以理解、整理、归纳，但不能创造”，禁止擅自补充创建、销毁、新增、删除、刷新、复用、状态机、API、事件、变量或程序算法。
 - 生成后执行本地硬规则校验：检查 `sequenceDiagram`、初始摆放阶段、真实节点遗漏、未知反引号节点、资料外程序行为与初始化阶段运行时逻辑。
 - 默认在发现高风险问题时自动修正一次；第二次仍未通过时保留结果并明确列出问题，交由人工确认。
 - 新增 `tests/deepseek-mmd-guardrails.regression.test.js`，覆盖 API 请求契约、JSON 解析、节点遗漏和防脑补校验。

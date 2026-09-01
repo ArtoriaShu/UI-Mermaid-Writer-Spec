@@ -872,7 +872,7 @@
       <div class="mmd-config-head">
         <div>
           <div class="mmd-config-title">DeepSeek 直接生成 Mermaid</div>
-          <div class="mmd-config-subtitle">API Key 只保存在本机 Figma clientStorage，不进入备注、交接文档、JSON 或 MMD。</div>
+          <div class="mmd-config-subtitle">每次先完整通读 Skill v1.3 与规范 v2.3，再读取交接资料并生成；API Key 只保存在本机 Figma clientStorage。</div>
         </div>
         <span class="mmd-key-status" id="deepseekKeyStatus">未读取设置</span>
       </div>
@@ -3489,7 +3489,7 @@
     deepseekUsageEl.textContent = '';
     mmdValidationEl.textContent = '生成完成后将自动执行本地硬规则校验。';
     mmdValidationEl.className = 'mmd-validation';
-    setDeepSeekBusy(true, '正在发送完整交接资料并生成 MMD…');
+    setDeepSeekBusy(true, '正在发送完整 Skill、完整规范与交接资料；DeepSeek 通读后开始生成 MMD…');
     deepseekStatusEl.className = 'mmd-request-status busy';
     postDeepSeekGeneration('generate', deepseekLastContext, '', []);
   }
@@ -3503,7 +3503,7 @@
     renderMmdValidation(issues);
     if (msg.mode === 'generate' && issues.length && deepseekAutoRepairEl.checked && !deepseekRepairAttempted) {
       deepseekRepairAttempted = true;
-      setDeepSeekBusy(true, '首次结果发现 ' + issues.length + ' 项高风险问题，正在自动修正一次…');
+      setDeepSeekBusy(true, '首次结果发现 ' + issues.length + ' 项高风险问题；正在重新通读完整 Skill 与规范后自动修正一次…');
       deepseekStatusEl.className = 'mmd-request-status busy';
       postDeepSeekGeneration('repair', deepseekLastContext, mmd, issues);
       return;

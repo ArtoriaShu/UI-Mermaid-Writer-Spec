@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const crypto = require('node:crypto');
 
 const pluginRoot = path.resolve(__dirname, '..');
 
@@ -15,12 +16,28 @@ function between(source, startMarker, endMarker) {
   return source.slice(start, end);
 }
 
+function normalizeDocument(text) {
+  return text.replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+}
+
+function sha256(text) {
+  return crypto.createHash('sha256').update(text, 'utf8').digest('hex');
+}
+
 function testDeepSeekRequestContract() {
   const source = fs.readFileSync(path.join(pluginRoot, 'code.js'), 'utf8');
-  const functions = between(source, 'function sanitizeDeepSeekModel', 'async function readDeepSeekSettings');
+  const functions = between(source, '/* DEEPSEEK_RULEBOOK_BUNDLE_START */', 'async function readDeepSeekSettings');
   const context = {};
   vm.createContext(context);
   vm.runInContext(functions, context);
+
+  const repositoryRoot = path.resolve(pluginRoot, '..');
+  const skill = normalizeDocument(fs.readFileSync(path.join(repositoryRoot, 'SKILL_UI_Mermaid_Writer_v1.3.md'), 'utf8'));
+  const specification = normalizeDocument(fs.readFileSync(path.join(repositoryRoot, 'UI控件交互图_Mermaid转写规范_v2.3.md'), 'utf8'));
+  assert.equal(context.DEEPSEEK_SKILL_DOCUMENT, skill, 'embedded Skill must match the complete source document');
+  assert.equal(context.DEEPSEEK_SPECIFICATION_DOCUMENT, specification, 'embedded specification must match the complete source document');
+  assert.equal(context.DEEPSEEK_RULEBOOK_MANIFEST.skillSha256, sha256(skill));
+  assert.equal(context.DEEPSEEK_RULEBOOK_MANIFEST.specificationSha256, sha256(specification));
 
   const body = context.buildDeepSeekRequestBody({
     model: 'unknown-model',
@@ -32,8 +49,11 @@ function testDeepSeekRequestContract() {
   assert.equal(body.temperature, 0.1);
   assert.equal(body.thinking.type, 'disabled');
   assert.equal(body.response_format.type, 'json_object');
-  assert.match(body.messages[0].content, /可以理解、整理、归纳，但绝对不能创造/);
-  assert.match(body.messages[0].content, /不得发明 API、事件、变量/);
+  assert.match(body.messages[0].content, /第一步：从【SKILL 原文开始】一直读到【SKILL 原文结束】，完整通读/);
+  assert.match(body.messages[0].content, /第二步：从【规范原文开始】一直读到【规范原文结束】，完整通读/);
+  assert.ok(body.messages[0].content.includes('【SKILL 原文开始】\n' + skill + '\n【SKILL 原文结束】'));
+  assert.ok(body.messages[0].content.includes('【规范原文开始】\n' + specification + '\n【规范原文结束】'));
+  assert.ok(body.messages[0].content.indexOf('【SKILL 原文结束】') < body.messages[0].content.indexOf('【规范原文开始】'));
   assert.match(body.messages[1].content, /未忽略业务节点清单 JSON/);
 
   const thinkingBody = context.buildDeepSeekRequestBody({ model: 'deepseek-v4-flash', thinking: true }, 0);
