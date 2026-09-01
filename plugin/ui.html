@@ -3404,6 +3404,54 @@
     return roles;
   }
 
+  function collectExplicitNameMappings(handoffText) {
+    var text = String(handoffText || '').replace(/`/g, '');
+    var mappings = [];
+    var seen = Object.create(null);
+    var patterns = [
+      /Figma\s*[：:]\s*([A-Za-z_][A-Za-z0-9_.-]*)\s*(?:→|->|=>)\s*(?:UE|运行时|最终(?:工程)?(?:节点|控件|名称|命名)?)\s*[：:]\s*([A-Za-z_][A-Za-z0-9_.-]*)/gi,
+      /Figma(?:\s*中)?(?:\s*节点)?\s*(?:是|为|：|:)?\s*([A-Za-z_][A-Za-z0-9_.-]*)[\s\S]{0,120}?(?:最终\s*)?UE(?:\s*节点|\s*控件|\s*名称|\s*命名)?\s*(?:是|为|：|:)\s*([A-Za-z_][A-Za-z0-9_.-]*)/gi,
+      /Figma(?:\s*中)?(?:\s*节点)?\s*(?:是|为|：|:)?\s*([A-Za-z_][A-Za-z0-9_.-]*)[\s\S]{0,120}?(?:最终\s*)?运行时(?:\s*节点|\s*控件|\s*名称|\s*命名)?\s*(?:是|为|：|:)\s*([A-Za-z_][A-Za-z0-9_.-]*)/gi
+    ];
+    for (var p = 0; p < patterns.length; p++) {
+      var match;
+      while ((match = patterns[p].exec(text))) {
+        var figmaName = String(match[1] || '').trim();
+        var runtimeName = String(match[2] || '').trim();
+        var key = figmaName + '\u0000' + runtimeName;
+        if (!figmaName || !runtimeName || figmaName === runtimeName || seen[key]) continue;
+        seen[key] = true;
+        mappings.push({ figmaName: figmaName, runtimeName: runtimeName });
+      }
+    }
+    return mappings;
+  }
+
+  function mappedNodeName(name, mappings) {
+    var source = String(name || '');
+    var list = Array.isArray(mappings) ? mappings : [];
+    for (var i = 0; i < list.length; i++) if (String(list[i] && list[i].figmaName || '') === source) return String(list[i].runtimeName || source);
+    return source;
+  }
+
+  function resolvedStructurePathText(pathInfo, mappings) {
+    var info = pathInfo || {};
+    var nodes = Array.isArray(info.nodes) ? info.nodes.slice() : String(info.text || '').split(/\s*→\s*/).filter(function(node){ return !!String(node || '').trim(); });
+    return nodes.map(function(node){ return mappedNodeName(String(node || '').trim(), mappings); }).join(' → ');
+  }
+
+  function looksLikeNodeIdentifier(value, knownNames) {
+    var name = String(value || '').trim();
+    if (/^(?:frame|img|txt|btn|bg|list|item|icon|slot|panel|container|progress|root|canvas|widget)_/i.test(name)) return true;
+    var known = Array.isArray(knownNames) ? knownNames : [];
+    for (var i = 0; i < known.length; i++) {
+      var actual = String(known[i] || '');
+      var prefixIndex = actual.indexOf('_');
+      if (prefixIndex > 0 && name.indexOf(actual.slice(0, prefixIndex + 1)) === 0) return true;
+    }
+    return false;
+  }
+
   function buildMmdGenerationContext() {
     if (activeState) persistActiveState();
     var audit = buildReferenceAudit();
@@ -3434,6 +3482,7 @@
     }
     if (handoffEditing) persistHandoffEditorText();
     var handoffText = currentHandoffText();
+    var explicitNameMappings = collectExplicitNameMappings(handoffText);
     var requirementMarker = '\n==================================================\n转写要求\n';
     var markerIndex = handoffText.indexOf(requirementMarker);
     var evidenceText = markerIndex >= 0 ? handoffText.slice(0, markerIndex) : handoffText;
@@ -3444,6 +3493,7 @@
       nodeFacts: nodeFacts,
       structureContracts: buildStructureContractsFromSnapshots(audit.snapshots),
       participantRoles: buildParticipantRoleDictionary(nodeFacts),
+      explicitNameMappings: explicitNameMappings,
       requiredNodeNames: requiredNodeNames
     };
   }
@@ -3456,6 +3506,7 @@
     var text = String(mmd || '').trim();
     var ctx = context || { evidenceText: '', requiredNodeNames: [], nodeFacts: [], structureContracts: [] };
     var evidence = String(ctx.evidenceText || '');
+    var explicitNameMappings = Array.isArray(ctx.explicitNameMappings) ? ctx.explicitNameMappings : [];
     var issues = [];
     if (!text) return [mmdIssue('empty', '生成结果为空。')];
     if (!/(^|\n)\s*sequenceDiagram\s*(\n|$)/.test(text)) issues.push(mmdIssue('sequence-diagram', '缺少 Mermaid sequenceDiagram 声明。'));
@@ -3466,7 +3517,8 @@
     var missing = [];
     var required = Array.isArray(ctx.requiredNodeNames) ? ctx.requiredNodeNames : [];
     for (var i = 0; i < required.length; i++) {
-      if (text.indexOf(required[i]) < 0) missing.push(required[i]);
+      var requiredOutputName = mappedNodeName(required[i], explicitNameMappings);
+      if (text.indexOf(requiredOutputName) < 0) missing.push(required[i] === requiredOutputName ? required[i] : (required[i] + ' → ' + requiredOutputName));
     }
     if (missing.length) {
       var shown = missing.slice(0, 60);
@@ -3484,7 +3536,7 @@
       var structureContract = structureContracts[sc] || {};
       var structurePaths = Array.isArray(structureContract.paths) ? structureContract.paths : [];
       for (var sp = 0; sp < structurePaths.length; sp++) {
-        var structureText = String(structurePaths[sp] && structurePaths[sp].text || '');
+        var structureText = resolvedStructurePathText(structurePaths[sp], explicitNameMappings);
         var normalizedStructureText = structureText.replace(/[`\s]/g, '').replace(/(?:--?>|=>|⇒|➜|➝|⟶)/g, '→');
         if (normalizedStructureText && normalizedInitial.indexOf(normalizedStructureText) < 0) {
           missingStructureChains.push('[' + String(structureContract.component || '') + '] ' + structureText);
@@ -3504,7 +3556,8 @@
       var factName = String(roleFact.name || '');
       var expectedRole = String(roleFact.chineseRole || '').trim();
       if (!factName || !expectedRole) continue;
-      var nodeMarker = '(' + factName + ')';
+      var participantNodeName = mappedNodeName(factName, explicitNameMappings);
+      var nodeMarker = '(' + participantNodeName + ')';
       for (var pl = 0; pl < participantLines.length; pl++) {
         var participantLine = participantLines[pl];
         if (participantLine.indexOf(nodeMarker) < 0) continue;
@@ -3512,21 +3565,31 @@
         var breakMatch = participantLine.match(/<br\s*\/?>/i);
         if (asIndex < 0 || !breakMatch || breakMatch.index <= asIndex) continue;
         var actualRole = participantLine.slice(asIndex + 4, breakMatch.index).trim();
-        if (actualRole !== expectedRole) changedParticipantRoles.push(factName + '：应为“' + expectedRole + '”，实际为“' + actualRole + '”');
+        if (actualRole !== expectedRole) changedParticipantRoles.push(participantNodeName + '：应为“' + expectedRole + '”，实际为“' + actualRole + '”');
       }
     }
     if (changedParticipantRoles.length) issues.push(mmdIssue('participant-role-rewritten', 'participant 中文作用必须逐字使用节点字典，不得润色：' + changedParticipantRoles.slice(0, 20).join('；')));
 
     var allowed = Object.create(null);
     for (var a = 0; a < required.length; a++) allowed[required[a]] = true;
+    for (var am = 0; am < explicitNameMappings.length; am++) {
+      var mappedRuntimeName = String(explicitNameMappings[am] && explicitNameMappings[am].runtimeName || '');
+      if (mappedRuntimeName) allowed[mappedRuntimeName] = true;
+    }
     var backtickRe = /`([^`\r\n]+)`/g;
     var inventedRefs = [];
     var refMatch;
     while ((refMatch = backtickRe.exec(text))) {
       var ref = String(refMatch[1] || '').trim();
-      if (ref && !allowed[ref] && evidence.indexOf(ref) < 0 && inventedRefs.indexOf(ref) < 0) inventedRefs.push(ref);
+      if (ref && !allowed[ref] && (looksLikeNodeIdentifier(ref, required) || evidence.indexOf(ref) < 0) && inventedRefs.indexOf(ref) < 0) inventedRefs.push(ref);
     }
-    if (inventedRefs.length) issues.push(mmdIssue('unknown-node-refs', '出现资料外的反引号节点引用：' + inventedRefs.slice(0, 30).join('、')));
+    var identifierRe = /[A-Za-z_][A-Za-z0-9_.-]*/g;
+    var identifierMatch;
+    while ((identifierMatch = identifierRe.exec(text))) {
+      var identifier = String(identifierMatch[0] || '').trim();
+      if (identifier && !allowed[identifier] && looksLikeNodeIdentifier(identifier, required) && inventedRefs.indexOf(identifier) < 0) inventedRefs.push(identifier);
+    }
+    if (inventedRefs.length) issues.push(mmdIssue('unknown-node-refs', '出现节点清单或明确命名映射之外的节点标识：' + inventedRefs.slice(0, 30).join('、')));
 
     var speculativeTerms = ['创建', '新增列表项', '删除', '移除列表项', '销毁', '刷新', '更新列表', '重新生成', '重新排列', '复用', '刷新频率', '合并算法'];
     var unsupportedTerms = [];
@@ -3618,6 +3681,7 @@
       handoffEdited: context.handoffEdited === true,
       structureContracts: context.structureContracts,
       participantRoles: context.participantRoles,
+      explicitNameMappings: context.explicitNameMappings,
       draftMmd: String(draft || ''),
       validationIssues: issueDetails
     } }, '*');

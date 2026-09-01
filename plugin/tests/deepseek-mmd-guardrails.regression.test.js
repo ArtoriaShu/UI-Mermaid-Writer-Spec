@@ -49,7 +49,8 @@ function testDeepSeekRequestContract() {
       componentRole: 'main',
       paths: [{ text: 'frame_real → img_leaf', nodes: ['frame_real', 'img_leaf'] }]
     }],
-    participantRoles: [{ component: 'frame_real', name: 'frame_real', chineseRole: '真实组件' }]
+    participantRoles: [{ component: 'frame_real', name: 'frame_real', chineseRole: '真实组件' }],
+    explicitNameMappings: [{ figmaName: 'img_leaf', runtimeName: 'img_leaf_runtime' }]
   }, 0);
   assert.equal(body.model, 'deepseek-v4-pro');
   assert.equal(body.temperature, 0.1);
@@ -65,6 +66,8 @@ function testDeepSeekRequestContract() {
   assert.match(body.messages[1].content, /本次必须覆盖的结构链（确定性校验契约）/);
   assert.match(body.messages[1].content, /frame_real → img_leaf/);
   assert.match(body.messages[1].content, /participant 中文作用字典/);
+  assert.match(body.messages[1].content, /明确命名映射/);
+  assert.match(body.messages[1].content, /img_leaf_runtime/);
   assert.match(body.messages[1].content, /当前交接资料模式：用户手动修改版/);
   assert.match(body.messages[1].content, /完整交接资料是本次生成的主要输入/);
 
@@ -205,7 +208,7 @@ function loadUiValidator() {
   const html = fs.readFileSync(path.join(pluginRoot, 'ui.html'), 'utf8');
   const scriptMatch = html.match(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/i);
   assert.ok(scriptMatch, 'ui.html must contain an inline script');
-  const functions = between(scriptMatch[1], '  function mmdIssue', '  function formatMmdValidation');
+  const functions = between(scriptMatch[1], '  function mappedNodeName', '  function formatMmdValidation');
   const context = {};
   vm.createContext(context);
   vm.runInContext(functions, context);
@@ -245,7 +248,8 @@ function testLocalGuardrails() {
     evidenceText: 'frame_parent / img_leaf / 动态显示',
     requiredNodeNames: ['frame_parent', 'img_leaf'],
     nodeFacts: [],
-    structureContracts: [{ component: 'frame_parent', componentRole: 'main', paths: [{ text: 'frame_parent → img_leaf' }] }]
+    structureContracts: [{ component: 'frame_parent', componentRole: 'main', paths: [{ text: 'frame_parent → img_leaf', nodes: ['frame_parent', 'img_leaf'] }] }],
+    explicitNameMappings: []
   };
   assert.deepEqual(issueCodes(context.validateGeneratedMmd(validMmd(), facts)), []);
 
@@ -285,6 +289,17 @@ function testLocalGuardrails() {
 
   const unknownRef = validMmd() + '\n    Note over Parent: `invented_node`';
   assert.ok(issueCodes(context.validateGeneratedMmd(unknownRef, facts)).includes('unknown-node-refs'));
+
+  const handoffTypo = validMmd() + '\n    Note over Parent: img_leef 显示';
+  const handoffTypoFacts = Object.assign({}, facts, { evidenceText: facts.evidenceText + ' / `img_leef` 显示' });
+  assert.ok(issueCodes(context.validateGeneratedMmd(handoffTypo, handoffTypoFacts)).includes('unknown-node-refs'), 'node-like handoff typos must not become valid node names');
+
+  const mappedFacts = Object.assign({}, facts, { explicitNameMappings: [{ figmaName: 'img_leaf', runtimeName: 'img_leaf_runtime' }] });
+  const mappedMmd = validMmd().replaceAll('img_leaf', 'img_leaf_runtime');
+  const mappedCodes = issueCodes(context.validateGeneratedMmd(mappedMmd, mappedFacts));
+  assert.equal(mappedCodes.includes('missing-real-nodes'), false, 'explicit runtime mappings satisfy real-node coverage');
+  assert.equal(mappedCodes.includes('missing-structure-chains'), false, 'explicit runtime mappings resolve deterministic structure paths');
+  assert.equal(mappedCodes.includes('unknown-node-refs'), false, 'explicit runtime mapping targets are allowed identifiers');
 
   const knownResource = validMmd() + '\n    Note over Parent: img_leaf 使用 `MI_Hero_Avatar`';
   const resourceFacts = { evidenceText: 'img_leaf 使用 MI_Hero_Avatar', requiredNodeNames: facts.requiredNodeNames, nodeFacts: [] };
@@ -341,6 +356,16 @@ function testStructureContracts() {
     { component: 'buff_pc', name: 'frame_empty', chineseRole: '' }
   ])));
   assert.deepEqual(roles, [{ component: 'buff_pc', name: 'buff_pc', chineseRole: '动态属性承载组件' }]);
+
+  const mappings = JSON.parse(JSON.stringify(context.collectExplicitNameMappings([
+    'Figma：img_progress_left → UE：frame_progress_left_progressBar',
+    'Figma 中是 `img_progress_right`，但最终 UE 节点是 `frame_progress_right_progressBar`。',
+    '普通错拼 `img_progress_lef` 不构成映射'
+  ].join('\n'))));
+  assert.deepEqual(mappings, [
+    { figmaName: 'img_progress_left', runtimeName: 'frame_progress_left_progressBar' },
+    { figmaName: 'img_progress_right', runtimeName: 'frame_progress_right_progressBar' }
+  ]);
 }
 
 function testManifestNetworkScope() {

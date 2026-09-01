@@ -590,6 +590,28 @@ frame_finish_right
 
 只有用户或交接资料明确提供时才能使用。
 
+### handoff 拼写错误与显式映射必须区分
+
+插件节点清单中的实际名称、路径和组件边界仍是结构权威来源。handoff / 交互说明可能由人工编辑，其中出现的普通拼写错误不得覆盖节点清单，也不得因为错名已经出现在 handoff 中就视为合法节点。
+
+处理顺序：
+
+1. 若错名可依据所属组件、真实路径和上下文唯一对应，最终 MMD 改用节点清单中的实际名称；
+2. 若无法唯一对应，写入资料缺口，不创造新节点；
+3. 只有资料明确提供双端映射时，才允许使用不同的最终工程名，例如：
+
+```text
+Figma：img_progress_left → UE：frame_progress_left_progressBar
+Figma：img_progress_right → 运行时：frame_progress_right_progressBar
+```
+
+以下情况不算显式映射：
+
+- 只出现一个节点清单之外的名称；
+- 名称看起来符合某种 UE 命名规律；
+- handoff 在不同段落使用了两个近似名称，但没有明确指出映射方向；
+- 根据已有节点自行猜测 `_progressBar`、`_list`、`_item` 等后缀。
+
 ---
 
 # 9. Mermaid participant 规则
