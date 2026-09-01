@@ -28,6 +28,7 @@
 
 - 使用 DeepSeek 官方 `https://api.deepseek.com/chat/completions` 生成 Mermaid。
 - API Key 仅保存于本机 Figma `clientStorage`，不会进入项目文件或导出资料。
+- API 请求使用 Figma 插件 UI 网络通道，避免主线程直连第三方 API 时触发 CORS `Failed to fetch`。
 - 默认使用 `deepseek-v4-pro`，可切换 Flash 或深度思考。
 - 每次请求先让模型完整通读 Skill v1.3 与规范 v2.3，再读取节点事实和交接资料并生成 MMD；不使用摘要替代原文。
 - 规则包带文档 SHA-256，并由回归测试逐字核对嵌入内容与源文档一致。

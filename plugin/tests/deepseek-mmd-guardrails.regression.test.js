@@ -82,26 +82,32 @@ async function testDeepSeekTransport() {
   const writes = [];
   const requests = [];
   const testKey = 'test-key-local-only';
-  const context = {
+  let context;
+  context = {
     figma: {
       clientStorage: {
         getAsync: async () => ({ apiKey: testKey, model: 'deepseek-v4-pro', thinking: false }),
         setAsync: async (key, value) => writes.push({ key, value })
       },
-      ui: { postMessage: message => posted.push(message) }
+      ui: { postMessage: message => {
+        posted.push(message);
+        if (message.type === 'deepseek-fetch-request') {
+          requests.push(message);
+          Promise.resolve().then(() => context.handleDeepSeekUiFetchResult({
+            fetchId: message.fetchId,
+            ok: true,
+            status: 200,
+            bodyText: JSON.stringify({
+              model: 'deepseek-v4-pro',
+              choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ mmd: 'sequenceDiagram\n    participant A as frame_real', warnings: [], evidence_gaps: [] }) } }],
+              usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 }
+            })
+          }));
+        }
+      } }
     },
-    fetch: async (url, options) => {
-      requests.push({ url, options });
-      return {
-        ok: true,
-        status: 200,
-        json: async () => ({
-          model: 'deepseek-v4-pro',
-          choices: [{ finish_reason: 'stop', message: { content: JSON.stringify({ mmd: 'sequenceDiagram\n    participant A as frame_real', warnings: [], evidence_gaps: [] }) } }],
-          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 }
-        })
-      };
-    }
+    setTimeout,
+    clearTimeout
   };
   vm.createContext(context);
   vm.runInContext(functions, context);
@@ -115,11 +121,40 @@ async function testDeepSeekTransport() {
   });
   assert.equal(requests.length, 1);
   assert.equal(requests[0].url, 'https://api.deepseek.com/chat/completions');
-  assert.equal(requests[0].options.headers.Authorization, 'Bearer ' + testKey);
-  assert.equal(requests[0].options.body.includes(testKey), false, 'API key must not enter the JSON request body');
+  assert.equal(requests[0].apiKey, testKey);
+  assert.equal(JSON.stringify(requests[0].requestBody).includes(testKey), false, 'API key must not enter the JSON request body');
   assert.equal(posted.at(-1).type, 'deepseek-mmd-result');
   assert.equal(posted.at(-1).requestId, 'request-1');
   assert.equal(writes.length, 0);
+}
+
+async function testUiFetchBridge() {
+  const html = fs.readFileSync(path.join(pluginRoot, 'ui.html'), 'utf8');
+  const scriptMatch = html.match(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/i);
+  assert.ok(scriptMatch, 'ui.html must contain an inline script');
+  const functions = between(scriptMatch[1], '  async function performDeepSeekFetch', '  window.onmessage = function');
+  const requests = [];
+  const posted = [];
+  const context = {
+    fetch: async (url, options) => {
+      requests.push({ url, options });
+      return { ok: true, status: 200, text: async () => '{"choices":[]}' };
+    },
+    parent: { postMessage: message => posted.push(message) }
+  };
+  vm.createContext(context);
+  vm.runInContext(functions, context);
+  await context.performDeepSeekFetch({
+    fetchId: 'fetch-1',
+    url: 'https://api.deepseek.com/chat/completions',
+    apiKey: 'transient-key',
+    requestBody: { model: 'deepseek-v4-pro' }
+  });
+  assert.equal(requests.length, 1);
+  assert.equal(requests[0].options.headers.Authorization, 'Bearer transient-key');
+  assert.equal(requests[0].options.body.includes('transient-key'), false);
+  assert.equal(posted[0].pluginMessage.type, 'deepseek-fetch-result');
+  assert.equal(posted[0].pluginMessage.status, 200);
 }
 
 function loadUiValidator() {
@@ -191,6 +226,7 @@ function testManifestNetworkScope() {
 async function main() {
   testDeepSeekRequestContract();
   await testDeepSeekTransport();
+  await testUiFetchBridge();
   testLocalGuardrails();
   testManifestNetworkScope();
   console.log('DeepSeek MMD guardrail regression tests passed.');

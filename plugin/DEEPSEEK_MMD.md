@@ -24,6 +24,8 @@ API Key 通过 Figma 插件主线程写入本机 `figma.clientStorage`。插件�
 - 把 Key 回传到 UI 输入框；
 - 向 DeepSeek 以外的域名发送网络请求。
 
+实际 API 请求由插件自身的 UI iframe 发出，以兼容 Figma 插件网络与 CORS 机制。已保存的 Key 只在用户点击生成时从主线程传入同一插件 UI 的内存，用于构造 `Authorization` 请求头；不会回填输入框、写入页面、请求正文或日志。
+
 点击“清除 Key”会删除本机保存的 Key。关闭“记住 API Key”后，本次输入仅用于当前生成与可能发生的一次自动修正。
 
 生成时会把 `SKILL_UI_Mermaid_Writer_v1.3.md` 完整原文、`UI控件交互图_Mermaid转写规范_v2.3.md` 完整原文、当前完整交接资料与未忽略业务节点清单发送给 DeepSeek。Figma 设计文件本身不会被上传，只有这两份规则文档与插件已经整理出的文本事实会进入请求。

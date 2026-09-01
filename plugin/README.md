@@ -8,6 +8,7 @@ Concept & Vibe Coding by Shu
 - 每次生成和自动修正都会先向 DeepSeek 提供完整 Skill v1.3 与完整规范 v2.3，要求依次通读两份原文后再读取交接事实并开始写 MMD；不以摘要替代原文。
 - “交接文档”支持直接修改、完成修改和恢复自动生成；手动修改版作为主要业务输入，结构化节点事实继续约束真实名称、路径和组件边界。
 - API Key 只保存到本机 `figma.clientStorage`，不会写入源码、备注 JSON、组件资料、交接文档或 MMD。
+- DeepSeek 请求通过插件 UI iframe 发出，绕开 Figma 主线程直连 API 的 CORS 限制；Key 仅在同一插件内存中短暂用于 `Authorization` 请求头。
 - 网络权限只允许 `https://api.deepseek.com`；除用户主动保存设置或生成 MMD 外，插件不会发送请求。
 - 默认模型为 `deepseek-v4-pro` 非思考模式、低温度；可切换 `deepseek-v4-flash` 或手动开启深度思考。
 - 请求使用 JSON Output，响应只接受 `mmd / warnings / evidence_gaps`，空响应或无效 JSON 自动重试一次。

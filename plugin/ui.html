@@ -5110,9 +5110,43 @@
     statusEl.textContent = (existing ? '已打开已有关联组件：' : '已添加关联组件并进入独立编辑：') + stateRootName(target) + (linkedVs ? ' · [Figma 变体组件] ' + linkedVs.variants.length + ' 个 Variant（节点树只列基准结构；无结构/显隐差异不展开）' : '') + ' · 主组件仍为 ' + workspaceMainName();
   }
 
+  async function performDeepSeekFetch(msg) {
+    var fetchId = String(msg && msg.fetchId || '');
+    try {
+      var response = await fetch(String(msg.url || ''), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + String(msg.apiKey || '')
+        },
+        body: JSON.stringify(msg.requestBody || {})
+      });
+      var bodyText = await response.text();
+      parent.postMessage({ pluginMessage: {
+        type: 'deepseek-fetch-result',
+        fetchId: fetchId,
+        ok: response.ok,
+        status: response.status,
+        bodyText: bodyText
+      } }, '*');
+    } catch (err) {
+      parent.postMessage({ pluginMessage: {
+        type: 'deepseek-fetch-result',
+        fetchId: fetchId,
+        ok: false,
+        status: 0,
+        error: err && err.message ? err.message : String(err)
+      } }, '*');
+    }
+  }
+
   window.onmessage = function(event){
     var msg = event.data && event.data.pluginMessage;
     if (!msg) return;
+    if (msg.type === 'deepseek-fetch-request') {
+      performDeepSeekFetch(msg);
+      return;
+    }
     if (msg.type === 'deepseek-settings') {
       deepseekHasApiKey = msg.hasApiKey === true;
       deepseekModelEl.value = msg.model === 'deepseek-v4-flash' ? 'deepseek-v4-flash' : 'deepseek-v4-pro';
