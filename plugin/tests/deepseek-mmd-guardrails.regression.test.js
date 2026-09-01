@@ -176,7 +176,7 @@ async function testUiFetchBridge() {
   });
   assert.deepEqual(fallbackRequests.map(item => item.url), [
     'https://api.deepseek.com/chat/completions',
-    'http://127.0.0.1:17823/deepseek/chat/completions'
+    'http://localhost:17823/deepseek/chat/completions'
   ]);
   assert.equal(fallbackPosted[0].pluginMessage.transport, 'local-bridge');
 }
@@ -258,7 +258,7 @@ function testLocalGuardrails() {
 function testManifestNetworkScope() {
   const manifest = JSON.parse(fs.readFileSync(path.join(pluginRoot, 'manifest.json'), 'utf8'));
   assert.deepEqual(manifest.networkAccess.allowedDomains, ['https://api.deepseek.com']);
-  assert.deepEqual(manifest.networkAccess.devAllowedDomains, ['http://127.0.0.1:17823']);
+  assert.deepEqual(manifest.networkAccess.devAllowedDomains, ['http://localhost:17823']);
 }
 
 async function main() {

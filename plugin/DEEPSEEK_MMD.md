@@ -34,7 +34,7 @@ API Key 通过 Figma 插件主线程写入本机 `figma.clientStorage`。插件�
 2. 保持命令窗口开启；
 3. 回到插件再次点击生成。
 
-插件会先尝试直接连接；只有直连发生网络异常时，才自动请求 `http://127.0.0.1:17823`。`deepseek_bridge.py` 只绑定本机回环地址，只转发 `/deepseek/chat/completions`，不保存或打印 API Key，并使用 Python 标准库连接官方 DeepSeek API。
+插件会先尝试直接连接；只有直连发生网络异常时，才自动请求 `http://localhost:17823`。`deepseek_bridge.py` 只绑定 `127.0.0.1` 本机回环地址，只转发 `/deepseek/chat/completions`，不保存或打印 API Key，并使用 Python 标准库连接官方 DeepSeek API。
 
 点击“清除 Key”会删除本机保存的 Key。关闭“记住 API Key”后，本次输入仅用于当前生成与可能发生的一次自动修正。
 

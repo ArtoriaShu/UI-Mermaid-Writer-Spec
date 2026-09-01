@@ -5162,7 +5162,7 @@
       } catch (directErr) {
         directError = directErr && directErr.message ? directErr.message : String(directErr);
         transport = 'local-bridge';
-        response = await fetch('http://127.0.0.1:17823/deepseek/chat/completions', requestOptions);
+        response = await fetch('http://localhost:17823/deepseek/chat/completions', requestOptions);
       }
       var bodyText = await response.text();
       parent.postMessage({ pluginMessage: {
