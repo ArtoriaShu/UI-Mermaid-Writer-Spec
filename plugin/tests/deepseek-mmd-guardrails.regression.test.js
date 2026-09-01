@@ -42,6 +42,7 @@ function testDeepSeekRequestContract() {
   const body = context.buildDeepSeekRequestBody({
     model: 'unknown-model',
     thinking: false,
+    handoffEdited: true,
     handoffText: '事实',
     nodeFacts: [{ name: 'frame_real' }]
   }, 0);
@@ -55,6 +56,8 @@ function testDeepSeekRequestContract() {
   assert.ok(body.messages[0].content.includes('【规范原文开始】\n' + specification + '\n【规范原文结束】'));
   assert.ok(body.messages[0].content.indexOf('【SKILL 原文结束】') < body.messages[0].content.indexOf('【规范原文开始】'));
   assert.match(body.messages[1].content, /未忽略业务节点清单 JSON/);
+  assert.match(body.messages[1].content, /当前交接资料模式：用户手动修改版/);
+  assert.match(body.messages[1].content, /当前交接资料是业务语义、交互说明、状态、动态值和用户测试修正的主要来源/);
 
   const thinkingBody = context.buildDeepSeekRequestBody({ model: 'deepseek-v4-flash', thinking: true }, 0);
   assert.equal(thinkingBody.model, 'deepseek-v4-flash');

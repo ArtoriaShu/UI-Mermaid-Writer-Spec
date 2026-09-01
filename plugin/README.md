@@ -6,6 +6,7 @@ Concept & Vibe Coding by Shu
 
 - 在独立“生成 MMD”页接入 DeepSeek Chat Completions API，可直接把当前完整交接文档生成 Mermaid `sequenceDiagram`。
 - 每次生成和自动修正都会先向 DeepSeek 提供完整 Skill v1.3 与完整规范 v2.3，要求依次通读两份原文后再读取交接事实并开始写 MMD；不以摘要替代原文。
+- “交接文档”支持直接修改、完成修改和恢复自动生成；手动修改版作为主要业务输入，结构化节点事实继续约束真实名称、路径和组件边界。
 - API Key 只保存到本机 `figma.clientStorage`，不会写入源码、备注 JSON、组件资料、交接文档或 MMD。
 - 网络权限只允许 `https://api.deepseek.com`；除用户主动保存设置或生成 MMD 外，插件不会发送请求。
 - 默认模型为 `deepseek-v4-pro` 非思考模式、低温度；可切换 `deepseek-v4-flash` 或手动开启深度思考。
@@ -14,6 +15,7 @@ Concept & Vibe Coding by Shu
 - 生成后执行本地硬规则校验：检查 `sequenceDiagram`、初始摆放阶段、真实节点遗漏、未知反引号节点、资料外程序行为与初始化阶段运行时逻辑。
 - 默认在发现高风险问题时自动修正一次；第二次仍未通过时保留结果并明确列出问题，交由人工确认。
 - 新增 `tests/deepseek-mmd-guardrails.regression.test.js`，覆盖 API 请求契约、JSON 解析、节点遗漏和防脑补校验。
+- 新增 `tests/handoff-editor.regression.test.js`，覆盖手动交接文档优先且不会被自动刷新覆盖的数据链路。
 
 详细说明见 [`DEEPSEEK_MMD.md`](DEEPSEEK_MMD.md)。
 

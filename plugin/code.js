@@ -341,6 +341,13 @@ function deepSeekUserPrompt(msg, attempt) {
     lines.push('任务：根据下面唯一允许的事实来源生成完整 MMD。');
     lines.push('');
   }
+  lines.push('【事实来源分工】');
+  lines.push('1. 未忽略业务节点清单是节点真实名称、类型、路径和组件边界的权威来源，不得用交接文档中的语义描述改写这些结构事实。');
+  lines.push('2. 当前交接资料是业务语义、交互说明、状态、动态值和用户测试修正的主要来源。');
+  lines.push('3. 交接资料中的【手动测试修正】属于用户最新修正，业务语义优先级最高，但不得凭空创造结构化节点清单中不存在的 Figma 节点或父子层级。');
+  lines.push('4. 两类事实冲突时，不得静默选择或自行补全：保留结构化节点事实，并把业务冲突写入 evidence_gaps。');
+  lines.push('当前交接资料模式：' + (msg && msg.handoffEdited === true ? '用户手动修改版' : '插件自动生成版'));
+  lines.push('');
   lines.push('【未忽略业务节点清单 JSON】');
   lines.push(JSON.stringify(nodeFacts, null, 2));
   lines.push('');

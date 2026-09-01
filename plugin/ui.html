@@ -195,6 +195,7 @@
   .plain-stats { margin-left: auto; color: var(--muted); white-space: nowrap; }
   .handoff-check { margin-bottom: 8px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--muted); white-space: pre-wrap; }
   .handoff-check.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, var(--border)); }
+  #aiOutput.handoff-editing { border-color: var(--brand); background: color-mix(in srgb,var(--brand) 4%,var(--bg)); box-shadow: inset 0 0 0 1px color-mix(in srgb,var(--brand) 20%,transparent); }
 
   .mmd-pane { flex-direction: column; min-height: 0; padding: 10px 14px 12px; gap: 8px; }
   .mmd-config { flex: none; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); padding: 10px; }
@@ -864,7 +865,7 @@
     <div class="ai-warning" id="aiWarning">节点默认全部进入交接文档；“忽略”会过滤当前节点及全部后代。</div>
     <div class="handoff-check" id="handoffCheck"></div>
     <textarea id="aiOutput" readonly spellcheck="false"></textarea>
-    <div class="actions"><button class="primary copy-output" data-target="aiOutput">复制完整交接文档</button><button class="download-output" data-target="aiOutput" data-suffix="ai-handoff">导出完整 .txt</button><div class="spacer"></div><span class="hint">这一个 TXT 会聚合主组件、关联组件、节点说明、有效的 Figma 变体状态、Figma 状态快照、交互说明与交接检查</span></div>
+    <div class="actions"><button id="editHandoff">修改交接文档</button><button id="resetHandoff" style="display:none">恢复自动生成</button><button class="primary copy-output" data-target="aiOutput">复制完整交接文档</button><button class="download-output" data-target="aiOutput" data-suffix="ai-handoff">导出完整 .txt</button><div class="spacer"></div><span class="hint">手动修改版作为 DeepSeek 的主要业务输入；结构化节点事实继续校验真实名称、路径与组件边界</span></div>
   </section>
 
   <section class="pane mmd-pane" id="mmdPane">
@@ -979,6 +980,7 @@
   var deepseekRepairAttempted = false;
   var deepseekLastModelWarnings = [];
   var deepseekLastEvidenceGaps = [];
+  var handoffEditing = false;
 
   var includeTypesEl = document.getElementById('includeTypes');
   var includeHiddenEl = document.getElementById('includeHidden');
@@ -1006,6 +1008,8 @@
   var aiOutput = document.getElementById('aiOutput');
   var aiWarningEl = document.getElementById('aiWarning');
   var handoffCheckEl = document.getElementById('handoffCheck');
+  var editHandoffEl = document.getElementById('editHandoff');
+  var resetHandoffEl = document.getElementById('resetHandoff');
   var jsonOutput = document.getElementById('jsonOutput');
   var componentContextEl = document.getElementById('componentContext');
   var componentSwitcherEl = document.getElementById('componentSwitcher');
@@ -3311,6 +3315,36 @@
     return lines;
   }
 
+  function hasHandoffOverride() {
+    return !!(workspace && workspace.handoffManualOverride === true);
+  }
+
+  function updateHandoffEditorUi() {
+    if (!aiOutput || !editHandoffEl || !resetHandoffEl) return;
+    aiOutput.readOnly = handoffEditing !== true;
+    aiOutput.classList.toggle('handoff-editing', handoffEditing === true);
+    editHandoffEl.textContent = handoffEditing ? '完成修改' : '修改交接文档';
+    editHandoffEl.classList.toggle('primary', handoffEditing === true);
+    resetHandoffEl.style.display = handoffEditing || hasHandoffOverride() ? '' : 'none';
+  }
+
+  function persistHandoffEditorText() {
+    if (!workspace || !aiOutput) return;
+    var text = String(aiOutput.value || '');
+    var automatic = String(workspace.handoffAutoText || buildAiLines().join('\n'));
+    workspace.handoffAutoText = automatic;
+    workspace.handoffManualText = text;
+    workspace.handoffManualOverride = text !== automatic;
+  }
+
+  function currentHandoffText() {
+    if (!workspace || !mainState()) return '';
+    var automatic = buildAiLines().join('\n');
+    workspace.handoffAutoText = automatic;
+    if (hasHandoffOverride()) return String(workspace.handoffManualText || '');
+    return automatic;
+  }
+
   function buildMmdGenerationContext() {
     if (activeState) persistActiveState();
     var audit = buildReferenceAudit();
@@ -3339,12 +3373,14 @@
         }
       }
     }
-    var handoffText = buildAiLines().join('\n');
+    if (handoffEditing) persistHandoffEditorText();
+    var handoffText = currentHandoffText();
     var requirementMarker = '\n==================================================\n转写要求\n';
     var markerIndex = handoffText.indexOf(requirementMarker);
     var evidenceText = markerIndex >= 0 ? handoffText.slice(0, markerIndex) : handoffText;
     return {
       handoffText: handoffText,
+      handoffEdited: hasHandoffOverride(),
       evidenceText: evidenceText,
       nodeFacts: nodeFacts,
       requiredNodeNames: requiredNodeNames
@@ -3464,6 +3500,7 @@
       model: deepseekModelEl.value,
       thinking: deepseekThinkingEl.checked === true,
       handoffText: context.handoffText,
+      handoffEdited: context.handoffEdited === true,
       nodeFacts: context.nodeFacts,
       draftMmd: String(draft || ''),
       validationIssues: issueMessages
@@ -4756,7 +4793,14 @@
   function renderOutputsAndSummary() {
     renderComponentSwitcher();
     updatePlainEditorFromState();
-    aiOutput.value = workspace && mainState() ? buildAiLines().join('\n') : '请先选择主组件。';
+    if (workspace && mainState()) {
+      var automaticHandoff = buildAiLines().join('\n');
+      workspace.handoffAutoText = automaticHandoff;
+      aiOutput.value = hasHandoffOverride() ? String(workspace.handoffManualText || '') : automaticHandoff;
+    } else {
+      aiOutput.value = '请先选择主组件。';
+    }
+    updateHandoffEditorUi();
     jsonOutput.value = roots.length ? buildStructureJson() : '{}';
 
     var entries = collectDisplayEntries();
@@ -4793,9 +4837,10 @@
 
     if (aiWarningEl) {
       aiWarningEl.classList.toggle('warn', totalMissing > 0);
-      aiWarningEl.textContent = totalMissing > 0
+      aiWarningEl.textContent = (totalMissing > 0
         ? '⚠ 整个工作区有 ' + totalMissing + ' 个未忽略节点尚未填写中文作用；它们仍会进入交接文档，不会被自动过滤。'
-        : '✓ 工作区内未忽略节点均已填写中文作用。“忽略”会同时过滤当前节点及全部后代。';
+        : '✓ 工作区内未忽略节点均已填写中文作用。“忽略”会同时过滤当前节点及全部后代。')
+        + (hasHandoffOverride() ? ' 当前使用手动修改版；DeepSeek 将读取此文本，结构化节点事实继续作为真实性护栏。' : '');
     }
 
     if (handoffCheckEl) {
@@ -4987,6 +5032,7 @@
 
     if (!incomingRoots.length) {
       statusEl.textContent = msg.message || '没有选择节点';
+      handoffEditing = false;
       applyStateGlobals(null);
       var fileNav = findSavedNavigationForCurrentFile();
       if (fileNav) activeWorkspaceNavigation = fileNav;
@@ -4997,6 +5043,7 @@
 
     var incomingKey = rootKeyFor(incomingRoots);
     workspace = createOrRestoreWorkspace(incomingRoots, msg.pageName || '');
+    handoffEditing = false;
     var restoredNav = findSavedNavigationForRoots(incomingRoots);
     activeWorkspaceNavigation = restoredNav || (linkedStates().length ? buildLiveWorkspaceNavigation() : null);
     currentRootKey = incomingKey;
@@ -5309,6 +5356,44 @@
     updatePlainEditorFromState();
     renderOutputsAndSummary();
     statusEl.textContent = '已清空当前交互工作区的交互说明。';
+  });
+
+  editHandoffEl.addEventListener('click', function(){
+    if (!workspace || !mainState()) {
+      statusEl.textContent = '请先选择主组件并生成交接文档。';
+      return;
+    }
+    if (handoffEditing) {
+      persistHandoffEditorText();
+      handoffEditing = false;
+      renderOutputsAndSummary();
+      statusEl.textContent = hasHandoffOverride()
+        ? '已完成修改。DeepSeek 将使用当前手动修改版交接文档，结构化节点事实继续作为真实性护栏。'
+        : '交接文档与自动生成版本一致，已退出修改模式。';
+      return;
+    }
+    handoffEditing = true;
+    updateHandoffEditorUi();
+    aiOutput.focus();
+    try { aiOutput.setSelectionRange(aiOutput.value.length, aiOutput.value.length); } catch (e) {}
+    statusEl.textContent = '正在修改交接文档；完成后点击“完成修改”。可追加【手动测试修正】作为最高优先级业务说明。';
+  });
+
+  resetHandoffEl.addEventListener('click', function(){
+    if (!workspace || !mainState()) return;
+    if (hasHandoffOverride() && !window.confirm('确定放弃当前手动修改，恢复插件最新自动生成的交接文档吗？')) return;
+    workspace.handoffManualOverride = false;
+    workspace.handoffManualText = '';
+    workspace.handoffAutoText = buildAiLines().join('\n');
+    handoffEditing = false;
+    renderOutputsAndSummary();
+    statusEl.textContent = '已恢复插件最新自动生成的交接文档。';
+  });
+
+  aiOutput.addEventListener('input', function(){
+    if (!handoffEditing || !workspace) return;
+    persistHandoffEditorText();
+    updateHandoffEditorUi();
   });
 
   generateMmdEl.addEventListener('click', startDeepSeekGeneration);
