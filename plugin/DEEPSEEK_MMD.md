@@ -26,6 +26,16 @@ API Key 通过 Figma 插件主线程写入本机 `figma.clientStorage`。插件�
 
 实际 API 请求由插件自身的 UI iframe 发出，以兼容 Figma 插件网络与 CORS 机制。已保存的 Key 只在用户点击生成时从主线程传入同一插件 UI 的内存，用于构造 `Authorization` 请求头；不会回填输入框、写入页面、请求正文或日志。
 
+## Figma 无法直连时的本机桥接
+
+如果 Python 可以访问 DeepSeek、但 Figma 显示 `Failed to fetch`：
+
+1. 双击 `plugin/start_deepseek_bridge.bat`；
+2. 保持命令窗口开启；
+3. 回到插件再次点击生成。
+
+插件会先尝试直接连接；只有直连发生网络异常时，才自动请求 `http://127.0.0.1:17823`。`deepseek_bridge.py` 只绑定本机回环地址，只转发 `/deepseek/chat/completions`，不保存或打印 API Key，并使用 Python 标准库连接官方 DeepSeek API。
+
 点击“清除 Key”会删除本机保存的 Key。关闭“记住 API Key”后，本次输入仅用于当前生成与可能发生的一次自动修正。
 
 生成时会把 `SKILL_UI_Mermaid_Writer_v1.3.md` 完整原文、`UI控件交互图_Mermaid转写规范_v2.3.md` 完整原文、当前完整交接资料与未忽略业务节点清单发送给 DeepSeek。Figma 设计文件本身不会被上传，只有这两份规则文档与插件已经整理出的文本事实会进入请求。
@@ -69,6 +79,8 @@ API Key 通过 Figma 插件主线程写入本机 `figma.clientStorage`。插件�
 - 把当前 Figma 隐藏当作业务默认隐藏；
 - 把列表为空解释成列表隐藏；
 - 把纯视觉 Variant 自动写成业务状态。
+- 把任何运行时条件写进初始摆放阶段。
+- 对节点字典已经提供的 participant 中文作用进行概括、缩写或润色。
 
 ## 本地校验与自动修正
 

@@ -20,6 +20,7 @@
 - `tests/variant-semantics.regression.test.js`：Variant 数据语义回归测试
 - `tests/deepseek-mmd-guardrails.regression.test.js`：DeepSeek 请求与防脑补回归测试
 - `scripts/embed-deepseek-rulebook.js`：将完整 Skill 与规范原文嵌入 DeepSeek 请求规则包
+- `deepseek_bridge.py` / `start_deepseek_bridge.bat`：Figma 无法直连时使用的本机回环 Python 桥接
 - `DEEPSEEK_MMD.md`：API、隐私和生成边界说明
 
 在 Figma Desktop 的开发插件菜单中选择 `plugin/manifest.json` 即可加载。
@@ -29,6 +30,7 @@
 - 使用 DeepSeek 官方 `https://api.deepseek.com/chat/completions` 生成 Mermaid。
 - API Key 仅保存于本机 Figma `clientStorage`，不会进入项目文件或导出资料。
 - API 请求使用 Figma 插件 UI 网络通道，避免主线程直连第三方 API 时触发 CORS `Failed to fetch`。
+- 直连仍失败时自动回退到可选本机 Python 桥接；桥接只监听 `127.0.0.1`，不保存或打印 API Key。
 - 默认使用 `deepseek-v4-pro`，可切换 Flash 或深度思考。
 - 每次请求先让模型完整通读 Skill v1.3 与规范 v2.3，再读取节点事实和交接资料并生成 MMD；不使用摘要替代原文。
 - 规则包带文档 SHA-256，并由回归测试逐字核对嵌入内容与源文档一致。

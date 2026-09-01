@@ -155,6 +155,30 @@ async function testUiFetchBridge() {
   assert.equal(requests[0].options.body.includes('transient-key'), false);
   assert.equal(posted[0].pluginMessage.type, 'deepseek-fetch-result');
   assert.equal(posted[0].pluginMessage.status, 200);
+
+  const fallbackRequests = [];
+  const fallbackPosted = [];
+  const fallbackContext = {
+    fetch: async (url, options) => {
+      fallbackRequests.push({ url, options });
+      if (url === 'https://api.deepseek.com/chat/completions') throw new TypeError('Failed to fetch');
+      return { ok: true, status: 200, text: async () => '{"choices":[]}' };
+    },
+    parent: { postMessage: message => fallbackPosted.push(message) }
+  };
+  vm.createContext(fallbackContext);
+  vm.runInContext(functions, fallbackContext);
+  await fallbackContext.performDeepSeekFetch({
+    fetchId: 'fetch-2',
+    url: 'https://api.deepseek.com/chat/completions',
+    apiKey: 'transient-key',
+    requestBody: { model: 'deepseek-v4-pro' }
+  });
+  assert.deepEqual(fallbackRequests.map(item => item.url), [
+    'https://api.deepseek.com/chat/completions',
+    'http://127.0.0.1:17823/deepseek/chat/completions'
+  ]);
+  assert.equal(fallbackPosted[0].pluginMessage.transport, 'local-bridge');
 }
 
 function loadUiValidator() {
@@ -203,6 +227,19 @@ function testLocalGuardrails() {
   const runtimeInitial = validMmd().replace('frame_parent 下摆出 img_leaf', '满足条件后刷新列表');
   assert.ok(issueCodes(context.validateGeneratedMmd(runtimeInitial, facts)).includes('runtime-in-initial'));
 
+  const conditionalInitial = validMmd().replace('frame_parent 下摆出 img_leaf', '未满足动态属性出现条件时，frame_dynamic_buff 中不显示 frame_hud_dynamic_attribute 条目');
+  assert.ok(issueCodes(context.validateGeneratedMmd(conditionalInitial, facts)).includes('runtime-in-initial'));
+
+  const exactRoleMmd = validMmd() + '\n    participant AttrList as 英雄头像和该英雄造成影响的技能图标/装备图标的组件<br/>(frame_hud_dynamic_attribute_list)';
+  const exactRoleFacts = {
+    evidenceText: facts.evidenceText,
+    requiredNodeNames: facts.requiredNodeNames,
+    nodeFacts: [{ name: 'frame_hud_dynamic_attribute_list', chineseRole: '英雄头像和该英雄造成影响的技能图标/装备图标的组件' }]
+  };
+  assert.equal(issueCodes(context.validateGeneratedMmd(exactRoleMmd, exactRoleFacts)).includes('participant-role-rewritten'), false);
+  const rewrittenRoleMmd = exactRoleMmd.replace('英雄头像和该英雄造成影响的技能图标/装备图标的组件', '英雄头像和技能/装备图标排列组件');
+  assert.ok(issueCodes(context.validateGeneratedMmd(rewrittenRoleMmd, exactRoleFacts)).includes('participant-role-rewritten'));
+
   const fenced = '```mermaid\n' + validMmd() + '\n```';
   assert.ok(issueCodes(context.validateGeneratedMmd(fenced, facts)).includes('code-fence'));
 
@@ -221,6 +258,7 @@ function testLocalGuardrails() {
 function testManifestNetworkScope() {
   const manifest = JSON.parse(fs.readFileSync(path.join(pluginRoot, 'manifest.json'), 'utf8'));
   assert.deepEqual(manifest.networkAccess.allowedDomains, ['https://api.deepseek.com']);
+  assert.deepEqual(manifest.networkAccess.devAllowedDomains, ['http://127.0.0.1:17823']);
 }
 
 async function main() {

@@ -873,7 +873,7 @@
       <div class="mmd-config-head">
         <div>
           <div class="mmd-config-title">DeepSeek 直接生成 Mermaid</div>
-          <div class="mmd-config-subtitle">每次先完整通读 Skill v1.3 与规范 v2.3，再读取交接资料并生成；API Key 只保存在本机 Figma clientStorage。</div>
+          <div class="mmd-config-subtitle">每次先完整通读 Skill v1.3 与规范 v2.3；直连失败时自动尝试本机 Python 桥接（start_deepseek_bridge.bat）。</div>
         </div>
         <span class="mmd-key-status" id="deepseekKeyStatus">未读取设置</span>
       </div>
@@ -3412,6 +3412,27 @@
       issues.push(mmdIssue('missing-real-nodes', '遗漏真实节点 ' + missing.length + ' 个：' + shown.join('、') + (missing.length > shown.length ? '……' : '')));
     }
 
+    var participantLines = text.split('\n').filter(function(line){ return /^\s*participant\s+/.test(line); });
+    var changedParticipantRoles = [];
+    var factsForRoles = Array.isArray(ctx.nodeFacts) ? ctx.nodeFacts : [];
+    for (var f = 0; f < factsForRoles.length; f++) {
+      var roleFact = factsForRoles[f] || {};
+      var factName = String(roleFact.name || '');
+      var expectedRole = String(roleFact.chineseRole || '').trim();
+      if (!factName || !expectedRole) continue;
+      var nodeMarker = '(' + factName + ')';
+      for (var pl = 0; pl < participantLines.length; pl++) {
+        var participantLine = participantLines[pl];
+        if (participantLine.indexOf(nodeMarker) < 0) continue;
+        var asIndex = participantLine.indexOf(' as ');
+        var breakMatch = participantLine.match(/<br\s*\/?>/i);
+        if (asIndex < 0 || !breakMatch || breakMatch.index <= asIndex) continue;
+        var actualRole = participantLine.slice(asIndex + 4, breakMatch.index).trim();
+        if (actualRole !== expectedRole) changedParticipantRoles.push(factName + '：应为“' + expectedRole + '”，实际为“' + actualRole + '”');
+      }
+    }
+    if (changedParticipantRoles.length) issues.push(mmdIssue('participant-role-rewritten', 'participant 中文作用必须逐字使用节点字典，不得润色：' + changedParticipantRoles.slice(0, 20).join('；')));
+
     var allowed = Object.create(null);
     for (var a = 0; a < required.length; a++) allowed[required[a]] = true;
     var backtickRe = /`([^`\r\n]+)`/g;
@@ -3444,6 +3465,17 @@
       var runtimeTerms = ['满足条件', '触发后', '变化时', '刷新', '创建列表项', '新增列表项', '删除列表项', '销毁', '更新列表', '重新生成'];
       var runtimeInInitial = [];
       for (var r = 0; r < runtimeTerms.length; r++) if (initMatch[0].indexOf(runtimeTerms[r]) >= 0) runtimeInInitial.push(runtimeTerms[r]);
+      var runtimePatterns = [
+        { label: '未满足……时', pattern: /未满足[^\n<]{0,80}时/ },
+        { label: '当……时', pattern: /当(?!前Figma)[^\n<]{1,80}时/ },
+        { label: '玩家死亡时', pattern: /玩家死亡(?:时|瞬间)?/ },
+        { label: '受到影响时', pattern: /受到[^\n<]{0,60}影响(?:时|后|并产生变化)?/ },
+        { label: '出现条件/消失条件', pattern: /(?:出现|消失)条件/ },
+        { label: '仅在……时出现', pattern: /仅在[^\n<]{1,80}时(?:出现|显示)/ }
+      ];
+      for (var rp = 0; rp < runtimePatterns.length; rp++) {
+        if (runtimePatterns[rp].pattern.test(initMatch[0]) && runtimeInInitial.indexOf(runtimePatterns[rp].label) < 0) runtimeInInitial.push(runtimePatterns[rp].label);
+      }
       if (runtimeInInitial.length) issues.push(mmdIssue('runtime-in-initial', '初始摆放阶段混入运行时行为：' + runtimeInInitial.join('、')));
     }
     return issues;
@@ -3547,9 +3579,10 @@
     }
     setDeepSeekBusy(false);
     deepseekStatusEl.className = 'mmd-request-status ' + (issues.length ? 'error' : 'ok');
+    var transportText = msg.transport === 'local-bridge' ? ' · 本机 Python 桥接' : ' · 直接连接';
     deepseekStatusEl.textContent = issues.length
       ? '生成完成，但仍有 ' + issues.length + ' 项本地校验问题；请查看下方清单后人工确认。'
-      : '生成完成，本地硬规则校验通过。模型：' + String(msg.model || deepseekModelEl.value);
+      : '生成完成，本地硬规则校验通过。模型：' + String(msg.model || deepseekModelEl.value) + transportText;
     var usage = msg.usage || {};
     deepseekUsageEl.textContent = usage.total_tokens != null ? ('Tokens：输入 ' + (usage.prompt_tokens || 0) + ' / 输出 ' + (usage.completion_tokens || 0) + ' / 合计 ' + usage.total_tokens) : '';
     deepseekApiKeyEl.value = '';
@@ -5112,22 +5145,33 @@
 
   async function performDeepSeekFetch(msg) {
     var fetchId = String(msg && msg.fetchId || '');
+    var directError = '';
     try {
-      var response = await fetch(String(msg.url || ''), {
+      var requestOptions = {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer ' + String(msg.apiKey || '')
         },
         body: JSON.stringify(msg.requestBody || {})
-      });
+      };
+      var response = null;
+      var transport = 'direct';
+      try {
+        response = await fetch(String(msg.url || ''), requestOptions);
+      } catch (directErr) {
+        directError = directErr && directErr.message ? directErr.message : String(directErr);
+        transport = 'local-bridge';
+        response = await fetch('http://127.0.0.1:17823/deepseek/chat/completions', requestOptions);
+      }
       var bodyText = await response.text();
       parent.postMessage({ pluginMessage: {
         type: 'deepseek-fetch-result',
         fetchId: fetchId,
         ok: response.ok,
         status: response.status,
-        bodyText: bodyText
+        bodyText: bodyText,
+        transport: transport
       } }, '*');
     } catch (err) {
       parent.postMessage({ pluginMessage: {
@@ -5135,7 +5179,7 @@
         fetchId: fetchId,
         ok: false,
         status: 0,
-        error: err && err.message ? err.message : String(err)
+        error: '直连失败：' + (directError || 'Failed to fetch') + '；本机桥接失败：' + (err && err.message ? err.message : String(err)) + '。请双击 plugin/start_deepseek_bridge.bat 并保持窗口开启'
       } }, '*');
     }
   }

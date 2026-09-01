@@ -12,6 +12,9 @@
   "networkAccess": {
     "allowedDomains": [
       "https://api.deepseek.com"
+    ],
+    "devAllowedDomains": [
+      "http://127.0.0.1:17823"
     ]
   }
 }

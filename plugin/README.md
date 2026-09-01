@@ -9,11 +9,13 @@ Concept & Vibe Coding by Shu
 - “交接文档”支持直接修改、完成修改和恢复自动生成；手动修改版作为主要业务输入，结构化节点事实继续约束真实名称、路径和组件边界。
 - API Key 只保存到本机 `figma.clientStorage`，不会写入源码、备注 JSON、组件资料、交接文档或 MMD。
 - DeepSeek 请求通过插件 UI iframe 发出，绕开 Figma 主线程直连 API 的 CORS 限制；Key 仅在同一插件内存中短暂用于 `Authorization` 请求头。
+- Figma 仍无法直连时，可双击 `start_deepseek_bridge.bat` 启动仅监听 `127.0.0.1` 的 Python 标准库桥接；插件会在直连网络失败后自动回退。
 - 网络权限只允许 `https://api.deepseek.com`；除用户主动保存设置或生成 MMD 外，插件不会发送请求。
 - 默认模型为 `deepseek-v4-pro` 非思考模式、低温度；可切换 `deepseek-v4-flash` 或手动开启深度思考。
 - 请求使用 JSON Output，响应只接受 `mmd / warnings / evidence_gaps`，空响应或无效 JSON 自动重试一次。
 - 完整 Skill 与规范共同强调“可以理解、整理、归纳，但不能创造”，禁止擅自补充创建、销毁、新增、删除、刷新、复用、状态机、API、事件、变量或程序算法。
 - 生成后执行本地硬规则校验：检查 `sequenceDiagram`、初始摆放阶段、真实节点遗漏、未知反引号节点、资料外程序行为与初始化阶段运行时逻辑。
+- participant 已有中文作用时逐字核对节点字典；“未满足……时 / 玩家死亡时 / 受到影响时”等运行时条件出现在初始阶段会触发自动修正。
 - 默认在发现高风险问题时自动修正一次；第二次仍未通过时保留结果并明确列出问题，交由人工确认。
 - 新增 `tests/deepseek-mmd-guardrails.regression.test.js`，覆盖 API 请求契约、JSON 解析、节点遗漏和防脑补校验。
 - 新增 `tests/handoff-editor.regression.test.js`，覆盖手动交接文档优先且不会被自动刷新覆盖的数据链路。
